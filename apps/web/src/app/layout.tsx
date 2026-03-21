@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import MetaPixel from "@/components/shared/MetaPixel";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,6 +39,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased">
+        {/* Meta Pixel — fires on every page, tracks route changes automatically */}
+        <MetaPixel />
         {children}
       </body>
     </html>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isValidLang, type Lang } from "@/lib/i18n";
+import { OrganizationSchema } from "@/components/shared/StructuredData";
 
 interface LangLayoutProps {
   children: React.ReactNode;
@@ -39,6 +40,10 @@ export default async function LangLayout({ children, params }: LangLayoutProps) 
 
   return (
     <html lang={lang as Lang} suppressHydrationWarning>
+      <head>
+        {/* AI SEO: Organization entity — tells LLMs exactly what this brand is */}
+        <OrganizationSchema lang={lang as Lang} />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Send, CheckCircle } from "lucide-react";
 import { type Lang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { useMetaEvents } from "@/hooks/useMetaEvents";
 
 interface LeadFormProps {
   lang: Lang;
+  city?: string; // passed from city landing pages for geo-targeted CAPI
 }
 
 const projectTypes = {
@@ -17,11 +19,18 @@ const projectTypes = {
 
 const projectTypeValues = ["renovations", "general", "plumbing", "electrical", "roofing", "hvac", "landscaping", "other"];
 
-export default function LeadForm({ lang }: LeadFormProps) {
+export default function LeadForm({ lang, city }: LeadFormProps) {
   const [form, setForm] = useState({ name: "", phone: "", email: "", projectType: "renovations" });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const meta = useMetaEvents();
+
+  // Fire ViewContent when the form mounts (homeowner audience signal)
+  useEffect(() => {
+    if (city) meta.trackLeadFormView(city);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +51,10 @@ export default function LeadForm({ lang }: LeadFormProps) {
       });
 
       if (dbError) throw dbError;
+
+      // ── Fire Meta Lead event (client + CAPI) ──────────────────────────────
+      await meta.trackLeadSubmitted(form.email, form.phone, city ?? "canada");
+
       setSuccess(true);
     } catch {
       setError(lang === "en" ? "Something went wrong. Please try again." : "Une erreur est survenue. Veuillez réessayer.");

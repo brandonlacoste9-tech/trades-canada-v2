@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LogIn, UserPlus, Mail, Lock, User, Building2, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { useMetaEvents } from "@/hooks/useMetaEvents";
 
 interface AuthFormProps {
   lang: Lang;
@@ -29,6 +30,7 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
   });
 
   const supabase = createClient();
+  const meta = useMetaEvents();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +59,8 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
           },
         });
         if (error) throw error;
+        // Fire contractor acquisition event
+        await meta.trackSignupStarted();
         setMessage({ type: "success", text: t("auth.verifyEmail", lang) });
       } else if (mode === "reset") {
         const { error } = await supabase.auth.resetPasswordForEmail(form.email, {

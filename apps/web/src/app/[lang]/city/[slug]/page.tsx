@@ -7,6 +7,7 @@ import { getCityBySlug, getAllCitySlugs } from "@/lib/cityData";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import LeadForm from "@/components/marketing/LeadForm";
+import { CitySchema } from "@/components/shared/StructuredData";
 
 interface CityPageProps {
   params: Promise<{ lang: string; slug: string }>;
@@ -73,22 +74,15 @@ export default async function CityPage({ params }: CityPageProps) {
   const description = city.description[l];
   const trades = l === "fr" ? city.tradesFr : city.trades;
 
-  // Structured data for local SEO
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    name: `Trades-Canada — ${cityName}`,
-    description,
-    areaServed: { "@type": "City", name: cityName, containedInPlace: { "@type": "Province", name: province } },
-    url: `https://trades-canada.com/${l}/city/${slug}`,
-    serviceType: trades,
-  };
-
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      {/* AI SEO: Full city schema with LocalBusiness + FAQPage for LLM citations */}
+      <CitySchema
+        cityName={cityName}
+        citySlug={slug}
+        lang={l}
+        province={province}
+        population={city.population ?? 500000}
       />
       <div className="min-h-screen flex flex-col">
         <Navbar lang={l} />
