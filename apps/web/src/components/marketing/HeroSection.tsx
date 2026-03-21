@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ChevronRight, Zap, TrendingUp, Users, BarChart3 } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";
@@ -33,14 +34,27 @@ export default function HeroSection({ lang }: HeroSectionProps) {
 
   return (
     <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
-      {/* Background layers */}
-      <div className="absolute inset-0 bg-hero-gradient" />
-      <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-100" />
+      {/* Hero background image */}
+      <div className="absolute inset-0">
+        <Image
+          src="/hero-bg.jpg"
+          alt="Canadian tradesman on a construction site overlooking the Toronto skyline at dusk"
+          fill
+          priority
+          quality={90}
+          className="object-cover object-center"
+          sizes="100vw"
+        />
+      </div>
+
+      {/* Dark overlay gradient — preserves readability over the image */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/85" />
       <div className="absolute inset-0 bg-amber-glow" />
+      <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-30" />
 
       {/* Ambient orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-amber-600/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 section-container pt-32 pb-20">
         <motion.div
