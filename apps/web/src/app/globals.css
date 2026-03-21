@@ -1,0 +1,231 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 4%;
+    --foreground: 40 15% 92%;
+    --card: 0 0% 6%;
+    --card-foreground: 40 15% 92%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 40 15% 92%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 38 60% 65%;
+    --secondary-foreground: 0 0% 4%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 4%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 12%;
+    --input: 0 0% 10%;
+    --ring: 38 92% 50%;
+    --radius: 0.75rem;
+
+    /* Font variables */
+    --font-display: "Inter", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    background-color: hsl(0, 0%, 4%);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(0, 0%, 6%);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.3);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(245, 158, 11, 0.5);
+  }
+}
+
+@layer components {
+  /* ── Glassmorphism Card ── */
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] shadow-glass;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:bg-white/[0.05] hover:border-amber-500/20 hover:shadow-amber-sm;
+  }
+
+  /* ── Amber Cyber Border ── */
+  .cyber-border {
+    position: relative;
+  }
+  .cyber-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(245, 158, 11, 0.3) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(245, 158, 11, 0.1) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* ── Amber Glow Button ── */
+  .btn-amber {
+    @apply relative inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg
+           bg-amber-500 text-black font-semibold font-display text-sm
+           transition-all duration-200
+           hover:bg-amber-400 hover:shadow-amber
+           active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  .btn-outline-amber {
+    @apply relative inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg
+           border border-amber-500/40 text-amber-400 font-semibold font-display text-sm
+           bg-transparent backdrop-blur-sm
+           transition-all duration-200
+           hover:border-amber-400 hover:bg-amber-500/10 hover:text-amber-300
+           active:scale-[0.98]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  .btn-ghost {
+    @apply relative inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+           text-muted-foreground font-display text-sm
+           transition-all duration-200
+           hover:text-foreground hover:bg-white/[0.05]
+           active:scale-[0.98];
+  }
+
+  /* ── Section Container ── */
+  .section-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* ── Amber Badge ── */
+  .badge-amber {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+           bg-amber-500/10 border border-amber-500/20
+           text-amber-400 text-xs font-display font-semibold tracking-wider uppercase;
+  }
+
+  /* ── Stat Card ── */
+  .stat-card {
+    @apply glass-card cyber-border rounded-xl p-5 flex flex-col gap-1;
+  }
+
+  /* ── Feature Card ── */
+  .feature-card {
+    @apply glass-card-hover cyber-border rounded-xl p-6 flex flex-col gap-4;
+  }
+
+  /* ── Input ── */
+  .input-amber {
+    @apply w-full px-4 py-3 rounded-lg
+           bg-white/[0.04] border border-white/[0.08]
+           text-foreground placeholder:text-muted-foreground
+           focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.06]
+           transition-all duration-200 text-sm;
+  }
+
+  /* ── Gradient Text ── */
+  .text-gradient-amber {
+    @apply bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent;
+  }
+
+  /* ── Section Label ── */
+  .section-label {
+    @apply badge-amber mb-4;
+  }
+
+  /* ── Heading styles ── */
+  .heading-xl {
+    @apply font-display font-bold text-4xl sm:text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-tight;
+  }
+
+  .heading-lg {
+    @apply font-display font-bold text-3xl sm:text-4xl lg:text-5xl leading-[1.1] tracking-tight;
+  }
+
+  .heading-md {
+    @apply font-display font-semibold text-2xl sm:text-3xl leading-tight;
+  }
+
+  /* ── Ticker / Marquee ── */
+  .ticker-wrapper {
+    @apply overflow-hidden relative;
+  }
+  .ticker-wrapper::before,
+  .ticker-wrapper::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    z-index: 10;
+  }
+  .ticker-wrapper::before {
+    left: 0;
+    background: linear-gradient(to right, hsl(0, 0%, 4%), transparent);
+  }
+  .ticker-wrapper::after {
+    right: 0;
+    background: linear-gradient(to left, hsl(0, 0%, 4%), transparent);
+  }
+
+  /* ── Dashboard Sidebar ── */
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg
+           text-muted-foreground text-sm font-display
+           transition-all duration-150
+           hover:text-foreground hover:bg-white/[0.05]
+           cursor-pointer;
+  }
+
+  .sidebar-item-active {
+    @apply sidebar-item text-amber-400 bg-amber-500/10 border border-amber-500/20;
+  }
+}
+
+@layer utilities {
+  /* ── Noise texture overlay ── */
+  .noise {
+    position: relative;
+  }
+  .noise::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0.4;
+  }
+}
