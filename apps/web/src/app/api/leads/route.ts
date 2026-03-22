@@ -1,31 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database } from "@/types/database";
 
 // ─── /api/leads — Public lead submission endpoint ─────────────────────────────
 // Uses the Supabase SERVICE ROLE key so the insert always succeeds regardless
 // of RLS policies on the `leads` table. This is the correct pattern for
 // unauthenticated public forms — never expose the service role key client-side.
+//
+// Actual `leads` table schema (from information_schema.columns):
+//   id, first_name, last_name, email, phone, city, province, postal_code,
+//   trade_category (enum), project_description, estimated_budget, status (USER-DEFINED),
+//   claimed_by, claimed_at, source, ip_address, created_at, updated_at
+//
+// trade_category enum values:
+//   roofing | plumbing | electrical | hvac | general_contractor | flooring |
+//   painting | landscaping | masonry | windows_doors | insulation | drywall |
+//   excavation | concrete | other
+
+const TRADE_CATEGORY_VALUES = [
+  "roofing",
+  "plumbing",
+  "electrical",
+  "hvac",
+  "general_contractor",
+  "flooring",
+  "painting",
+  "landscaping",
+  "masonry",
+  "windows_doors",
+  "insulation",
+  "drywall",
+  "excavation",
+  "concrete",
+  "other",
+] as const;
+
+// Map legacy form values → actual DB enum values
+const LEGACY_MAP: Record<string, string> = {
+  renovations: "general_contractor",
+  general: "general_contractor",
+  "new_construction": "general_contractor",
+};
 
 const LeadSchema = z.object({
+  // The form sends a single "name" field — we split it into first/last
   name: z.string().min(1).max(200),
   email: z.string().email(),
   phone: z.string().max(30).nullable().optional(),
-  project_type: z.enum([
-    "renovations",
-    "general",
-    "plumbing",
-    "electrical",
-    "roofing",
-    "hvac",
-    "landscaping",
-    "other",
-  ]),
-  language: z.enum(["en", "fr"]).default("en"),
-  source: z.string().default("web"),
-  status: z.string().default("new"),
+  // Accept both old form values and new DB enum values
+  project_type: z.string().min(1),
   city: z.string().max(100).nullable().optional(),
+  language: z.string().optional(),
 });
 
 function getServiceClient() {
@@ -36,9 +61,26 @@ function getServiceClient() {
     throw new Error("Supabase service role credentials not configured.");
   }
 
-  return createClient<Database>(url, key, {
+  return createClient(url, key, {
     auth: { persistSession: false },
   });
+}
+
+function splitName(fullName: string): { first_name: string; last_name: string | null } {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return { first_name: parts[0], last_name: null };
+  const last = parts.pop()!;
+  return { first_name: parts.join(" "), last_name: last };
+}
+
+function mapTradeCategory(raw: string): string {
+  const normalized = raw.toLowerCase().trim();
+  // Check legacy map first
+  if (LEGACY_MAP[normalized]) return LEGACY_MAP[normalized];
+  // Check if it's already a valid enum value
+  if ((TRADE_CATEGORY_VALUES as readonly string[]).includes(normalized)) return normalized;
+  // Default fallback
+  return "other";
 }
 
 export async function POST(req: NextRequest) {
@@ -58,20 +100,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const { first_name, last_name } = splitName(parsed.data.name);
+  const trade_category = mapTradeCategory(parsed.data.project_type);
+
   // ── Insert via service role (bypasses RLS) ─────────────────────────────────
   try {
     const supabase = getServiceClient();
-    // Only insert columns that actually exist in the live Supabase table.
-    // language / source / status may be in the TS types but absent from the DB.
-    const insertPayload: Record<string, unknown> = {
-      name: parsed.data.name,
+    const { error: dbError } = await supabase.from("leads").insert({
+      first_name,
+      last_name,
       email: parsed.data.email,
       phone: parsed.data.phone ?? null,
-      project_type: parsed.data.project_type,
+      trade_category,
       city: parsed.data.city ?? null,
-    };
-
-    const { error: dbError } = await supabase.from("leads").insert(insertPayload as never);
+      source: "web",
+    });
 
     if (dbError) {
       console.error("[api/leads] Supabase insert error:", dbError.message, dbError.code);
