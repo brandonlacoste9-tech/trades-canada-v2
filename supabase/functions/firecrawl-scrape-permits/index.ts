@@ -13,6 +13,8 @@ interface FirecrawlResult {
   metadata?: { title?: string; description?: string };
 }
 
+const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY")!;
+
 interface ScrapedPermit {
   title: string;
   description: string | null;
@@ -23,16 +25,43 @@ interface ScrapedPermit {
   city: string;
   project_type: string | null;
   estimated_value: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const PERMIT_SOURCES = [
   { city: "toronto", url: "https://www.toronto.ca/city-government/data-research-maps/open-data/open-data-catalogue/development-applications/", label: "Toronto Building Permits" },
   { city: "montreal", url: "https://donnees.montreal.ca/dataset/permis-de-construire", label: "Montréal Permis" },
-  { city: "vancouver", url: "https://opendata.vancouver.ca/explore/dataset/issued-building-permits/", label: "Vancouver Building Permits" },
+  { city: "vancouver", url: "https://vancouver.ca/home-property-development/issued-building-permits.aspx", label: "Vancouver Building Permits" },
   { city: "calgary", url: "https://data.calgary.ca/Business-and-Economic-Activity/Building-Permits/c2es-76ed", label: "Calgary Building Permits" },
-  { city: "ottawa", url: "https://open.ottawa.ca/datasets/building-permit-applications/", label: "Ottawa Building Permits" },
+  { city: "ottawa", url: "https://ottawa.ca/en/planning-development-and-construction/building-and-renovating/building-permits/applied-and-issued-building-permits", label: "Ottawa Building Permits" },
   { city: "edmonton", url: "https://data.edmonton.ca/Urban-Planning-Economy/Building-Permits/24uj-dj8v", label: "Edmonton Building Permits" },
+  { city: "winnipeg", url: "https://data.winnipeg.ca/Public-Safety/Building-Permits/9yey-m6xk", label: "Winnipeg Building Permits" },
+  { city: "quebec", url: "https://donnees.ville.quebec.qc.ca/dataset/permis-de-construction", label: "Québec Permis" },
+  { city: "halifax", url: "https://data-halifax.opendata.arcgis.com/datasets/halifax::building-permits/explore", label: "Halifax Building Permits" },
+  { city: "victoria", url: "https://opendata.victoria.ca/datasets/victoria::building-permits/explore", label: "Victoria Building Permits" },
+  { city: "saskatoon", url: "https://data.saskatoon.ca/Public-Safety-and-Health/Building-Permits/asv8-m6xk", label: "Saskatoon Building Permits" },
+  { city: "regina", url: "https://open.regina.ca/dataset/building-permits", label: "Regina Building Permits" },
+  { city: "brampton", url: "https://geohub.brampton.ca/datasets/brampton::building-permits-active/explore", label: "Brampton Building Permits" },
+  { city: "london", url: "https://opendata.london.ca/datasets/london-ontario::building-permit-applications/explore", label: "London Building Permits" },
+  { city: "surrey", url: "https://data.surrey.ca/dataset/building-permits", label: "Surrey Building Permits" },
+  { city: "mississauga", url: "https://data.mississauga.ca/datasets/mississauga::building-permits-monthly/explore", label: "Mississauga Building Permits" }
 ];
+
+async function geocodeAddress(address: string, city: string): Promise<{ lat: number; lng: number } | null> {
+  if (!GOOGLE_MAPS_API_KEY || !address) return null;
+  try {
+    const fullAddress = `${address}, ${city}, Canada`;
+    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${GOOGLE_MAPS_API_KEY}&internalUsageAttributionIds=gmp_mcp_codeassist_v0.1_github`);
+    const data = await res.json();
+    if (data.status === "OK" && data.results?.[0]?.geometry?.location) {
+      return data.results[0].geometry.location;
+    }
+  } catch (err) {
+    console.error(`Geocode failed for ${address}:`, err);
+  }
+  return null;
+}
 
 function detectProjectType(text: string): string | null {
   const lower = text.toLowerCase();
@@ -86,7 +115,6 @@ function parsePermitsFromMarkdown(markdown: string, city: string, sourceUrl: str
   const permits: ScrapedPermit[] = [];
   const lines = markdown.split("\n").filter((l) => l.trim());
 
-  // Extract permit-like entries (lines with permit numbers, addresses, etc.)
   const permitPattern = /(?:permit|permis|application|#)\s*[\w-]+/i;
   const addressPattern = /\d+\s+[\w\s]+(?:st|ave|blvd|rd|dr|way|cres|pl|court|lane|street|avenue|boulevard|road|drive|crescent|place)\b/i;
 
@@ -117,7 +145,7 @@ function parsePermitsFromMarkdown(markdown: string, city: string, sourceUrl: str
         estimated_value: estimatedValue,
       });
 
-      if (permits.length >= 20) break; // Cap per source
+      if (permits.length >= 20) break; 
     }
   }
 
@@ -128,9 +156,10 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
   let totalInserted = 0;
   let totalSkipped = 0;
+  let totalGeocoded = 0;
   const errors: string[] = [];
 
-  console.log(`Starting Firecrawl permit scrape for ${PERMIT_SOURCES.length} cities`);
+  console.log(`Starting Firecrawl permit scrape and Google Geocoding for ${PERMIT_SOURCES.length} cities`);
 
   for (const source of PERMIT_SOURCES) {
     try {
@@ -146,11 +175,22 @@ Deno.serve(async (req) => {
       console.log(`Found ${permits.length} permits in ${source.city}`);
 
       for (const permit of permits) {
-        // Upsert by URL + permit_number to avoid duplicates
+        let latitude = null;
+        let longitude = null;
+
+        if (permit.location) {
+          const coords = await geocodeAddress(permit.location, permit.city);
+          if (coords) {
+            latitude = coords.lat;
+            longitude = coords.lng;
+            totalGeocoded++;
+          }
+        }
+
         const { error } = await supabase
           .from("scraped_inventory")
           .upsert(
-            { ...permit, scraped_at: new Date().toISOString() },
+            { ...permit, latitude, longitude, scraped_at: new Date().toISOString() },
             { onConflict: "url,permit_number", ignoreDuplicates: true }
           );
 
