@@ -94,9 +94,7 @@ Copy `supabase/.env.example` to `supabase/.env` for Edge Function secrets.
 
 The `apps/web` Next.js app is designed for **Vercel** deployment.
 
-**Recommended:** In Vercel → Project → Settings → General, set **Root Directory** to `apps/web`. The Next.js app, `next.config`, and `.next` output all live there, which matches what Vercel expects.
-
-If the project root stays the **repository root**, root `vercel.json` runs Turbo then links `apps/web/.next` → `.next` so Vercel’s Next builder can find the build output (see `vercel.json`).
+**Required for Vercel:** In the Vercel project, open **Settings → General** and set **Root Directory** to `apps/web`. The Next.js app, `next.config`, and `.next` output must live at the deployment root; deploying from the monorepo root without this breaks Vercel’s Next.js step (see `apps/web/vercel.json`).
 
 Supabase Edge Functions are deployed via `supabase functions deploy`.
 
