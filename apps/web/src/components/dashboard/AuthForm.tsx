@@ -98,8 +98,9 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
             : "Lien envoyé! Vérifiez votre courriel.",
         });
       }
-    } catch (err: any) {
-      setMessage({ type: "error", text: err.message ?? t("auth.invalidCreds", lang) });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : t("auth.invalidCreds", lang);
+      setMessage({ type: "error", text: errorMessage });
     } finally {
       setLoading(false);
     }

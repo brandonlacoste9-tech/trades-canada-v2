@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { User, MessageCircle, CreditCard, CheckCircle, Copy, RefreshCw } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";

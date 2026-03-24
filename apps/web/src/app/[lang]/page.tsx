@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { isValidLang, t, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang } from "@/lib/i18n";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import HeroSection from "@/components/marketing/HeroSection";

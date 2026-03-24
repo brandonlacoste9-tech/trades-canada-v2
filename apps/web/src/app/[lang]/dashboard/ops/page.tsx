@@ -28,8 +28,7 @@ export default async function OpsHealthPage({ params }: OpsPageProps) {
   type LeadRow = Database["public"]["Tables"]["leads"]["Row"];
   type LogRow = Database["public"]["Tables"]["automated_logs"]["Row"];
 
-  const now = Date.now();
-  const dayAgoIso = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  const dayAgoIso = new Date(new Date().getTime() - 24 * 60 * 60 * 1000).toISOString();
 
   const { data: leadsData } = await supabase
     .from("leads")

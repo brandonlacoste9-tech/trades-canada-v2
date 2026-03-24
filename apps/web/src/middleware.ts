@@ -1,6 +1,6 @@
-import { createServerClient, type CookieMethodsServer } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { locales, defaultLocale, isValidLang } from "@/lib/i18n";
+import { defaultLocale, isValidLang } from "@/lib/i18n";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
