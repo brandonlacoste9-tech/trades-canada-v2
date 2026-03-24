@@ -94,17 +94,15 @@ Copy `supabase/.env.example` to `supabase/.env` for Edge Function secrets.
 
 The `apps/web` Next.js app is designed for **Vercel** deployment.
 
-### Vercel: Root Directory must be `apps/web`
+### Vercel (monorepo)
 
-Vercel must treat **`apps/web`** as the project root (where `next.config` and `.next` live). There is **no supported** way to deploy this Next app from the monorepo root without that setting—workarounds that copy or symlink `.next` to the repo root break Vercel’s Next.js step and can fail with errors like `ENOENT` under `/node_modules/.pnpm/@swc+helpers/...`.
+**Best:** **Settings → General → Root Directory** = **`apps/web`**, then redeploy. Your install log should list **`next`** and other app dependencies, not only **`turbo`** / **`typescript`**.
 
-Do this once per Vercel project:
+**If you cannot change Root Directory** (team policy, legacy project), this repo includes a **root `vercel.json`** that points **`outputDirectory`** at `apps/web/.next` and a root **`next`** dependency so Vercel can detect the framework while **`pnpm run build`** still runs Turbo for `@trades-canada/web`. Prefer fixing Root Directory when possible.
 
-1. **Project** → **Settings** → **General** → **Root Directory** → enter **`apps/web`** → **Save**.
-2. Confirm **Build & Development Settings**: Framework Preset should be **Next.js**; Install should be **`pnpm install`**; Build should be **`pnpm run build`** (defaults are fine with `apps/web/vercel.json`).
-3. Redeploy. In the build log, **Install** should list dependencies from `apps/web` (including **`next`**). If you only see **`turbo`** and **`typescript`**, Root Directory is still the repo root—go back to step 1.
+**Do not** copy or symlink `.next` to the repo root; that breaks Vercel’s Next step (`@swc/helpers` / `ENOENT`).
 
-Configuration lives in **`apps/web/vercel.json`**. Do not add a root `vercel.json` that builds from the monorepo root for this app.
+App-specific defaults live in **`apps/web/vercel.json`** when Root Directory is **`apps/web`**.
 
 Supabase Edge Functions are deployed via `supabase functions deploy`.
 
