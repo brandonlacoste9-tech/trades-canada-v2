@@ -5,6 +5,14 @@ import { defaultLocale, isValidLang } from "@/lib/i18n";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // ── API routes: skip auth + session refresh ───────────────────────────────
+  // Lead intake and other handlers use their own credentials; running the
+  // Supabase browser client + getUser() on every POST adds latency and can
+  // fail the whole request if the anon key/network path misbehaves at the edge.
+  if (pathname.startsWith("/api")) {
+    return NextResponse.next();
+  }
+
   // ── i18n redirect: / → /en ──
   if (pathname === "/") {
     const acceptLang = request.headers.get("accept-language") ?? "";

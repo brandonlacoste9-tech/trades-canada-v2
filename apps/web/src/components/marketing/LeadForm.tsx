@@ -60,10 +60,20 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       });
 
       if (!res.ok) {
-        const payload = (await res.json().catch(() => ({}))) as { error?: string };
+        const raw = await res.text();
+        let payload: { error?: string; code?: string; details?: unknown } = {};
+        try {
+          payload = raw ? (JSON.parse(raw) as { error?: string; code?: string; details?: unknown }) : {};
+        } catch {
+          console.error("[LeadForm] non-JSON error body", res.status, raw.slice(0, 200));
+        }
         const msg = payload?.error ?? `HTTP ${res.status}`;
-        console.error("[LeadForm] insert error:", msg);
-        throw new Error(msg);
+        const apiCode = payload?.code;
+        console.error("[LeadForm] insert error:", res.status, msg);
+        const err = new Error(msg) as Error & { status?: number; apiCode?: string };
+        err.status = res.status;
+        err.apiCode = apiCode;
+        throw err;
       }
 
       // Lead is saved — show success first; analytics must never block UX.
@@ -76,20 +86,52 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[LeadForm] submission failed:", msg);
+      const ext = err instanceof Error ? (err as Error & { status?: number; apiCode?: string }) : {};
+      const status = ext.status;
+      const apiCode = ext.apiCode;
+      console.error("[LeadForm] submission failed:", msg, status ?? "", apiCode ?? "");
       const isConfig =
+        apiCode === "MISSING_SERVICE_ROLE" ||
         /credentials not configured|service role|SUPABASE/i.test(msg) ||
         msg.includes("Invalid API key") ||
         msg.includes("JWT");
-      setError(
-        isConfig && lang === "en"
-          ? "Our form is temporarily unavailable. Please email us or try again later."
-          : isConfig && lang === "fr"
-            ? "Notre formulaire est temporairement indisponible. Écrivez-nous ou réessayez plus tard."
-            : lang === "en"
-              ? "Something went wrong. Please try again."
-              : "Une erreur est survenue. Veuillez réessayer."
-      );
+      const isNotFound = status === 404 || /HTTP 404/i.test(msg);
+      const isRateLimited = status === 429 || /too many requests/i.test(msg);
+      const isNetwork = /failed to fetch|networkerror|load failed|aborted|unexpected token/i.test(msg);
+
+      if (isRateLimited) {
+        setError(
+          lang === "en"
+            ? "Too many submissions from this network. Please wait a few minutes and try again."
+            : "Trop de demandes depuis ce réseau. Attendez quelques minutes et réessayez."
+        );
+      } else if (status === 422) {
+        setError(
+          lang === "en"
+            ? "Please check your name, email, and selections, then try again."
+            : "Vérifiez le nom, le courriel et les choix, puis réessayez."
+        );
+      } else if (isNotFound || isNetwork) {
+        setError(
+          lang === "en"
+            ? "We could not reach the form service. Check that the site is deployed correctly, or email us directly."
+            : "Impossible d’atteindre le service du formulaire. Vérifiez le déploiement ou écrivez-nous directement."
+        );
+      } else if (isConfig) {
+        setError(
+          lang === "en"
+            ? "Our form is temporarily unavailable. Please email us or try again later."
+            : "Notre formulaire est temporairement indisponible. Écrivez-nous ou réessayez plus tard."
+        );
+      } else if (apiCode === "DB_INSERT_FAILED") {
+        setError(
+          lang === "en"
+            ? "We couldn't save your request. Please try again in a few minutes or email us directly."
+            : "Impossible d’enregistrer votre demande. Réessayez dans quelques minutes ou écrivez-nous."
+        );
+      } else {
+        setError(lang === "en" ? "Something went wrong. Please try again." : "Une erreur est survenue. Veuillez réessayer.");
+      }
     } finally {
       setLoading(false);
     }

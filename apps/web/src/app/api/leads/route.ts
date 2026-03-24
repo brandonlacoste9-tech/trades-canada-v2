@@ -168,7 +168,10 @@ export async function POST(req: NextRequest) {
         code: dbError.code,
         message: dbError.message,
       });
-      return NextResponse.json({ error: dbError.message }, { status: 500 });
+      return NextResponse.json(
+        { error: dbError.message, code: "DB_INSERT_FAILED" },
+        { status: 500 }
+      );
     }
 
     // Qualification + logs must not fail the HTTP response after a successful insert.
@@ -233,7 +236,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error.";
-    console.error(`${LOG_PREFIX} unexpected_error`, { requestId, ip, message: msg });
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const code =
+      /credentials not configured|service role credentials/i.test(msg)
+        ? "MISSING_SERVICE_ROLE"
+        : "UNEXPECTED";
+    console.error(`${LOG_PREFIX} unexpected_error`, { requestId, ip, message: msg, code });
+    return NextResponse.json({ error: msg, code }, { status: 500 });
   }
 }
