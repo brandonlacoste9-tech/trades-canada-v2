@@ -19,6 +19,8 @@ const projectTypes = {
 
 const projectTypeValues = ["general_contractor", "plumbing", "electrical", "roofing", "hvac", "landscaping", "flooring", "painting", "other"];
 
+type LeadSubmitErrorMeta = { status?: number; apiCode?: string };
+
 export default function LeadForm({ lang, city }: LeadFormProps) {
   const [form, setForm] = useState({ name: "", phone: "", email: "", projectType: "general_contractor" });
   const [website, setWebsite] = useState("");
@@ -86,7 +88,8 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      const ext = err instanceof Error ? (err as Error & { status?: number; apiCode?: string }) : {};
+      const ext: LeadSubmitErrorMeta =
+        err instanceof Error ? (err as Error & LeadSubmitErrorMeta) : {};
       const status = ext.status;
       const apiCode = ext.apiCode;
       console.error("[LeadForm] submission failed:", msg, status ?? "", apiCode ?? "");
