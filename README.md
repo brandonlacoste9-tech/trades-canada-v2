@@ -92,7 +92,10 @@ Copy `supabase/.env.example` to `supabase/.env` for Edge Function secrets.
 
 ## Deployment
 
-The `apps/web` Next.js app is designed for **Vercel** deployment with zero configuration.
+The `apps/web` Next.js app is designed for **Vercel** deployment.
+
+In the Vercel project settings, set **Root Directory** to `apps/web` (this monorepo’s root `package.json` does not list `next`; Vercel reads `next` from `apps/web/package.json`). The file `apps/web/vercel.json` pins install and build for that app.
+
 Supabase Edge Functions are deployed via `supabase functions deploy`.
 
 ### Stripe Webhook Deployment Notes
