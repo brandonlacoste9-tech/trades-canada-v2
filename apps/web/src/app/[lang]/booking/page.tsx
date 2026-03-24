@@ -4,7 +4,7 @@ import { isValidLang, t, type Lang } from "@/lib/i18n";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import LeadForm from "@/components/marketing/LeadForm";
-import { CalendarDays, Clock, CheckCircle, Phone } from "lucide-react";
+import { CalendarDays, Clock, CheckCircle, Mail } from "lucide-react";
 
 interface BookingPageProps {
   params: Promise<{ lang: string }>;
@@ -84,18 +84,23 @@ export default async function BookingPage({ params }: BookingPageProps) {
                         {l === "en" ? "30-Minute Strategy Session" : "Session stratégique de 30 minutes"}
                       </p>
                       <p className="text-muted-foreground text-xs">
-                        {l === "en" ? "Via Google Meet or phone" : "Via Google Meet ou téléphone"}
+                        {l === "en"
+                          ? "Via Google Meet or async follow-up"
+                          : "Via Google Meet ou suivi asynchrone"}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                    <Phone className="w-5 h-5 text-amber-400 shrink-0" />
+                    <Mail className="w-5 h-5 text-amber-400 shrink-0" />
                     <div>
                       <p className="font-display font-semibold text-sm text-foreground">
-                        {l === "en" ? "Or call us directly" : "Ou appelez-nous directement"}
+                        {l === "en" ? "Prefer async contact?" : "Préférez un contact asynchrone?"}
                       </p>
-                      <a href="tel:+15148001234" className="text-amber-400 text-xs hover:text-amber-300 transition-colors">
-                        +1 (514) 800-1234
+                      <a
+                        href="mailto:hello@trades-canada.com?subject=Trades-Canada%20Strategy%20Request"
+                        className="text-amber-400 text-xs hover:text-amber-300 transition-colors"
+                      >
+                        hello@trades-canada.com
                       </a>
                     </div>
                   </div>

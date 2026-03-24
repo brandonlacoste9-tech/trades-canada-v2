@@ -32,6 +32,23 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
   const supabase = createClient();
   const meta = useMetaEvents();
 
+  const maybeStartCheckout = async () => {
+    if (!planId) return false;
+    const res = await fetch("/api/stripe/create-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priceId: planId, lang }),
+    });
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(payload.error ?? "Could not start checkout.");
+    }
+    const payload = (await res.json()) as { url?: string };
+    if (!payload.url) throw new Error("Missing checkout URL.");
+    window.location.href = payload.url;
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -44,9 +61,16 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
           password: form.password,
         });
         if (error) throw error;
-        router.push(`/${lang}/dashboard`);
-        router.refresh();
+        const redirectedToCheckout = await maybeStartCheckout();
+        if (!redirectedToCheckout) {
+          router.push(`/${lang}/dashboard`);
+          router.refresh();
+        }
       } else if (mode === "signup") {
+        const checkoutNext = planId
+          ? `/${lang}/auth?mode=login&plan=${encodeURIComponent(planId)}`
+          : `/${lang}/dashboard`;
+
         const { error } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
@@ -55,7 +79,7 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
               display_name: form.displayName,
               company_name: form.companyName,
             },
-            emailRedirectTo: `${window.location.origin}/${lang}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/${lang}/auth/callback?next=${encodeURIComponent(checkoutNext)}`,
           },
         });
         if (error) throw error;
@@ -101,9 +125,11 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
             ? t("auth.signup", lang)
             : t("auth.resetPassword", lang)}
         </h1>
-        {planId && mode === "signup" && (
+        {planId && (mode === "signup" || mode === "login") && (
           <p className="text-amber-400 text-xs font-display mt-1">
-            {lang === "en" ? "Creating account for selected plan" : "Création de compte pour le plan sélectionné"}
+            {lang === "en"
+              ? "Selected plan will continue to secure checkout"
+              : "Le plan sélectionné continuera vers le paiement sécurisé"}
           </p>
         )}
       </div>

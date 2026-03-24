@@ -4,7 +4,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Zap, CheckCircle, Clock, Phone, Mail } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";
-import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/database";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
@@ -13,7 +12,7 @@ interface LeadListProps {
   leads: Lead[];
   marketLeads: Lead[];
   lang: Lang;
-  userId: string;
+  aiActions?: Record<string, "email_now" | "send_booking_link" | "nurture">;
 }
 
 const scoreColor = (score: number | null) => {
@@ -35,21 +34,44 @@ const statusBadge = (status: string, lang: Lang) => {
   return <span className={`px-2 py-0.5 rounded-full text-xs font-display font-semibold border ${s.cls}`}>{s.label[lang]}</span>;
 };
 
-function LeadCard({ lead, lang, userId, isMarket }: { lead: Lead; lang: Lang; userId: string; isMarket: boolean }) {
+function LeadCard({
+  lead,
+  lang,
+  isMarket,
+  aiAction,
+}: {
+  lead: Lead;
+  lang: Lang;
+  isMarket: boolean;
+  aiAction?: "email_now" | "send_booking_link" | "nurture";
+}) {
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   const handleClaim = async () => {
-    setClaiming(true);
-    const supabase = createClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const client = supabase as any;
-    await client
-      .from("leads")
-      .update({ contractor_id: userId, claimed_at: new Date().toISOString(), status: "qualified" })
-      .eq("id", lead.id);
-    setClaimed(true);
-    setClaiming(false);
+    try {
+      setClaimError(null);
+      setClaiming(true);
+      const res = await fetch(`/api/leads/${lead.id}/claim`, { method: "POST" });
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          waitMinutesRemaining?: number;
+        };
+        const waitPart =
+          payload.waitMinutesRemaining && payload.waitMinutesRemaining > 0
+            ? ` (${payload.waitMinutesRemaining} min)`
+            : "";
+        throw new Error(payload.error ? `${payload.error}${waitPart}` : "Unable to claim lead.");
+      }
+      setClaimed(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to claim lead.";
+      setClaimError(message);
+    } finally {
+      setClaiming(false);
+    }
   };
 
   return (
@@ -64,6 +86,21 @@ function LeadCard({ lead, lang, userId, isMarket }: { lead: Lead; lang: Lang; us
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-display font-semibold text-sm text-foreground truncate">{lead.name}</span>
             {statusBadge(lead.status, lang)}
+            {aiAction && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-display font-semibold border border-cyan-400/30 bg-cyan-500/10 text-cyan-300">
+                {aiAction === "email_now"
+                  ? lang === "en"
+                    ? "AI: Email Now"
+                    : "IA: Courriel immédiat"
+                  : aiAction === "send_booking_link"
+                    ? lang === "en"
+                      ? "AI: Send Booking Link"
+                      : "IA: Lien de réservation"
+                    : lang === "en"
+                      ? "AI: Nurture"
+                      : "IA: Nurture"}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
             {lead.city && (
@@ -126,11 +163,14 @@ function LeadCard({ lead, lang, userId, isMarket }: { lead: Lead; lang: Lang; us
           )}
         </div>
       </div>
+      {claimError && (
+        <p className="mt-2 text-xs text-destructive text-right">{claimError}</p>
+      )}
     </motion.div>
   );
 }
 
-export default function LeadList({ leads, marketLeads, lang, userId }: LeadListProps) {
+export default function LeadList({ leads, marketLeads, lang, aiActions = {} }: LeadListProps) {
   const [tab, setTab] = useState<"my" | "market">("my");
 
   const displayLeads = tab === "my" ? leads : marketLeads;
@@ -174,8 +214,8 @@ export default function LeadList({ leads, marketLeads, lang, userId }: LeadListP
                 key={lead.id}
                 lead={lead}
                 lang={lang}
-                userId={userId}
                 isMarket={tab === "market"}
+                aiAction={aiActions[lead.id]}
               />
             ))
           )}

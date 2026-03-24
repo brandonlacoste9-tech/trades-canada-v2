@@ -1,0 +1,33 @@
+---
+description: Free-first workflow for Trades-Canada in Cursor
+alwaysApply: true
+---
+
+# Trades-Canada Free-First Workflow
+
+Use this workflow by default for local development and validation:
+
+1. Prefer built-in local checks before any external integration:
+
+   - `pnpm check:web`
+   - `pnpm dev:web`
+
+1. Keep autonomous features functional without paid APIs:
+
+   - Lead qualification must gracefully fall back when `OPENAI_API_KEY` is missing.
+   - Never block lead intake if AI provider is unavailable.
+
+1. Source-of-truth operational rules:
+
+   - Stripe webhook source of truth is `apps/web/src/app/api/webhooks/stripe/route.ts`.
+   - Keep `SUPABASE_ENABLE_LEGACY_STRIPE_WEBHOOK=false` unless doing emergency fallback.
+
+1. Lead safety rules:
+
+   - Keep anti-spam checks enabled in `/api/leads` (rate limit, honeypot, fill-time gate).
+   - Never expose service role keys in client code or committed SQL.
+
+1. Quebec-first product quality:
+
+   - Preserve EN/FR parity for all user-facing copy.
+   - Prioritize city/service matching and score-based lead routing for contractor visibility.

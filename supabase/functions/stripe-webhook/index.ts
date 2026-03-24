@@ -1,6 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14";
 
+// NOTE:
+// The primary Stripe webhook handler is now the Next.js route:
+//   apps/web/src/app/api/webhooks/stripe/route.ts
+// Keep this legacy function disabled by default to avoid double-processing.
+const ENABLE_LEGACY_WEBHOOK = Deno.env.get("SUPABASE_ENABLE_LEGACY_STRIPE_WEBHOOK") === "true";
+
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   apiVersion: "2024-06-20",
   httpClient: Stripe.createFetchHttpClient(),
@@ -18,6 +24,20 @@ const PLAN_NAMES: Record<string, string> = {
 };
 
 Deno.serve(async (req) => {
+  if (!ENABLE_LEGACY_WEBHOOK) {
+    return new Response(
+      JSON.stringify({
+        received: true,
+        ignored: true,
+        reason: "Legacy Supabase Stripe webhook is disabled",
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
 

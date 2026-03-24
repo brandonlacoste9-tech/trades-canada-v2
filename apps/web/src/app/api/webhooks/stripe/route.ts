@@ -47,12 +47,40 @@ async function getProfileByCustomerId(customerId: string) {
   return data;
 }
 
-async function updateSubscription(
-  customerId: string,
-  tier: SubscriptionTier,
-  status: string,
-  subscriptionId: string | null
+async function wasEventProcessed(eventId: string): Promise<boolean> {
+  const db = getSupabase();
+  const { data } = await db
+    .from("automated_logs")
+    .select("id")
+    .eq("channel", "stripe")
+    .eq("event_type", "stripe.webhook")
+    .contains("metadata", { stripe_event_id: eventId } as never)
+    .limit(1);
+
+  return Boolean(data?.length);
+}
+
+async function writeWebhookLog(
+  event: Stripe.Event,
+  status: "sent" | "failed",
+  subject: string,
+  recipient: string | null = null
 ) {
+  const db = getSupabase();
+  await db.from("automated_logs").insert({
+    event_type: "stripe.webhook",
+    channel: "stripe",
+    status,
+    subject,
+    recipient,
+    metadata: {
+      stripe_event_id: event.id,
+      stripe_event_type: event.type,
+    },
+  });
+}
+
+async function updateSubscription(customerId: string, tier: SubscriptionTier) {
   const db = getSupabase();
   const profile = await getProfileByCustomerId(customerId);
   if (!profile) {
@@ -64,18 +92,9 @@ async function updateSubscription(
     .from("profiles")
     .update({
       subscription_tier: tier,
-      subscription_status: status,
-      stripe_subscription_id: subscriptionId,
       updated_at: new Date().toISOString(),
-    } as never)
+    })
     .eq("id", profile.id);
-
-  await db.from("automation_log").insert({
-    contractor_id: profile.id,
-    event_type: "subscription_updated",
-    payload: { tier, status, stripe_subscription_id: subscriptionId },
-    created_at: new Date().toISOString(),
-  } as never);
 }
 
 // ─── Route handler ───────────────────────────────────────────────────────────
@@ -100,6 +119,10 @@ export async function POST(req: NextRequest) {
   console.log(`[stripe-webhook] Processing event: ${event.type}`);
 
   try {
+    if (await wasEventProcessed(event.id)) {
+      return NextResponse.json({ received: true, deduplicated: true });
+    }
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -111,15 +134,15 @@ export async function POST(req: NextRequest) {
         const priceId = subscription.items.data[0]?.price.id ?? "";
         const tier = getTier(priceId);
 
-        await updateSubscription(customerId, tier, "active", subscriptionId);
-
-        if (session.metadata?.userId) {
+        // Support both metadata conventions.
+        const userId = session.metadata?.userId ?? session.metadata?.user_id;
+        if (userId) {
           const db = getSupabase();
-          await db
-            .from("profiles")
-            .update({ stripe_customer_id: customerId } as never)
-            .eq("id", session.metadata.userId);
+          await db.from("profiles").update({ stripe_customer_id: customerId }).eq("id", userId);
         }
+
+        await updateSubscription(customerId, tier);
+        await writeWebhookLog(event, "sent", "Subscription activated", session.customer_email);
         break;
       }
 
@@ -128,15 +151,16 @@ export async function POST(req: NextRequest) {
         const customerId = sub.customer as string;
         const priceId = sub.items.data[0]?.price.id ?? "";
         const tier = getTier(priceId);
-        const status = sub.status === "active" ? "active" : sub.status;
-        await updateSubscription(customerId, tier, status, sub.id);
+        await updateSubscription(customerId, tier);
+        await writeWebhookLog(event, "sent", `Subscription updated (${sub.status})`);
         break;
       }
 
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = sub.customer as string;
-        await updateSubscription(customerId, "free", "cancelled", null);
+        await updateSubscription(customerId, "free");
+        await writeWebhookLog(event, "sent", "Subscription cancelled");
         break;
       }
 
@@ -148,27 +172,21 @@ export async function POST(req: NextRequest) {
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
           const priceId = sub.items.data[0]?.price.id ?? "";
           const tier = getTier(priceId);
-          await updateSubscription(customerId, tier, "active", subscriptionId);
+          await updateSubscription(customerId, tier);
         }
+        await writeWebhookLog(event, "sent", "Invoice payment succeeded", invoice.customer_email);
         break;
       }
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const customerId = invoice.customer as string;
-        const profile = await getProfileByCustomerId(customerId);
-        if (profile) {
-          const db = getSupabase();
-          await db
-            .from("profiles")
-            .update({ subscription_status: "past_due" } as never)
-            .eq("id", profile.id);
-        }
+        await writeWebhookLog(event, "failed", "Invoice payment failed", invoice.customer_email);
         break;
       }
 
       default:
         console.log(`[stripe-webhook] Unhandled event type: ${event.type}`);
+        await writeWebhookLog(event, "sent", `Unhandled event: ${event.type}`);
     }
   } catch (err) {
     console.error("[stripe-webhook] Error processing event:", err);

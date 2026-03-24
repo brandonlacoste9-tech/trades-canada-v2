@@ -30,21 +30,38 @@ This is a **Turborepo** monorepo with the following workspaces:
 ## Key Architectural Decisions
 
 ### SSR/SSG for SEO Sovereignty
+
 All public-facing pages (`/`, `/city/:slug`, `/booking`) are **Server Components** with `generateStaticParams()`, ensuring fully rendered HTML is served to search engine crawlers. This directly addresses the SPA anti-pattern in the previous Vite build.
 
 ### Bilingual i18n Routing
+
 URLs are structured as `/{lang}/{page}` (e.g., `/en/city/toronto`, `/fr/city/montreal`). The Next.js middleware handles automatic language detection and redirection. Both EN and FR versions are indexed independently with proper `hreflang` tags.
 
 ### Edge Functions as Worker Bees
+
 The backend automation layer lives entirely in Supabase Edge Functions (Deno runtime):
-- `stripe-webhook` — Handles subscription lifecycle events
+
+- `stripe-webhook` — Legacy fallback only (disabled by default)
 - `create-checkout-session` — Secure server-side Stripe session creation
 - `telegram-lead-alert` — Instant lead notifications to contractors
 - `firecrawl-scrape-permits` — Daily permit data scraping across 6 Canadian cities
 - `send-email-queue` — pgmq-based reliable email delivery via Resend
 
+### Stripe Webhook Source of Truth
+
+To prevent duplicate billing updates, use **one webhook handler only**:
+
+- **Primary:** `apps/web/src/app/api/webhooks/stripe/route.ts`
+- **Legacy:** `supabase/functions/stripe-webhook` (kept for emergency fallback, disabled by default)
+
+Set Stripe's endpoint to:
+
+- `https://<your-domain>/api/webhooks/stripe`
+
 ### Dashboard Architecture
+
 The authenticated dashboard uses a hybrid approach:
+
 - **Server Components** for data fetching (leads, logs, profile)
 - **Client Components** for interactive UI (LeadList, SettingsClient, LeadRadarClient)
 - **Middleware** for auth protection (no client-side redirects)
@@ -58,8 +75,14 @@ pnpm install
 # Start development server
 pnpm dev
 
+# Start only web app
+pnpm dev:web
+
 # Build for production
 pnpm build
+
+# Fast validation for web app
+pnpm check:web
 ```
 
 ## Environment Variables
@@ -71,6 +94,16 @@ Copy `supabase/.env.example` to `supabase/.env` for Edge Function secrets.
 
 The `apps/web` Next.js app is designed for **Vercel** deployment with zero configuration.
 Supabase Edge Functions are deployed via `supabase functions deploy`.
+
+### Stripe Webhook Deployment Notes
+
+- Keep `SUPABASE_ENABLE_LEGACY_STRIPE_WEBHOOK=false` in Supabase function secrets (default behavior).
+- Only set it to `true` temporarily if you intentionally switch Stripe to call the Supabase function.
+
+## Cursor Free Workflow
+
+- Project rule file: `.cursor/rules/trades-canada-free-workflow.mdc`
+- Quick setup doc: `docs/cursor-free-setup.md`
 
 ## City Coverage
 

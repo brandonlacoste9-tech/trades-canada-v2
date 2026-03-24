@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Database } from "@/types/database";
 import LeadList from "@/components/dashboard/LeadList";
 import DashboardStats from "@/components/dashboard/DashboardStats";
+import { evaluateLeadEligibility } from "@/lib/leadEligibility";
 
 interface DashboardPageProps {
   params: Promise<{ lang: string }>;
@@ -26,6 +27,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
 
   type LeadRow = Database["public"]["Tables"]["leads"]["Row"];
   type LogRow = Database["public"]["Tables"]["automated_logs"]["Row"];
+  type PermitRow = Database["public"]["Tables"]["scraped_inventory"]["Row"];
 
   // Fetch leads for this contractor
   const { data: leadsData } = await supabase
@@ -36,6 +38,12 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     .limit(50);
   const leads = leadsData as LeadRow[] | null;
 
+  const { data: profileData } = await supabase
+    .from("profiles")
+    .select("subscription_tier, city, services")
+    .eq("id", user.id)
+    .single();
+
   // Fetch automation logs
   const { data: logsData } = await supabase
     .from("automated_logs")
@@ -44,8 +52,32 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     .limit(5);
   const logs = logsData as LogRow[] | null;
 
+  const { data: permitsData } = await supabase
+    .from("scraped_inventory")
+    .select("*")
+    .order("scraped_at", { ascending: false })
+    .limit(6);
+  const permits = (permitsData ?? []) as PermitRow[];
+
   const myLeads = leads?.filter((l) => l.contractor_id === user.id) ?? [];
-  const marketLeads = leads?.filter((l) => l.contractor_id === null) ?? [];
+  const marketLeadsRaw = leads?.filter((lead) => lead.contractor_id === null) ?? [];
+  const marketLeads = profileData
+    ? marketLeadsRaw.filter((lead) => evaluateLeadEligibility(lead, profileData).eligible)
+    : marketLeadsRaw;
+
+  const aiActionMap: Record<string, "email_now" | "send_booking_link" | "nurture"> = {};
+  for (const log of logs ?? []) {
+    if (log.event_type !== "lead.ai_qualified" || !log.lead_id || !log.metadata) continue;
+    if (typeof log.metadata !== "object" || Array.isArray(log.metadata)) continue;
+    const nextActionRaw = (log.metadata as Record<string, unknown>).next_action;
+    if (
+      nextActionRaw === "email_now" ||
+      nextActionRaw === "send_booking_link" ||
+      nextActionRaw === "nurture"
+    ) {
+      aiActionMap[log.lead_id] = nextActionRaw;
+    }
+  }
 
   const stats = {
     total: myLeads.length,
@@ -71,9 +103,46 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
 
       <DashboardStats stats={stats} lang={l} />
 
+      <div className="glass-card cyber-border rounded-xl p-5">
+        <h3 className="font-display font-semibold text-sm text-foreground mb-4">
+          {l === "en" ? "Lead Sources" : "Sources de leads"}
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              {l === "en" ? "Website Form Leads" : "Leads formulaire web"}
+            </p>
+            <p className="font-display text-2xl font-bold text-foreground mt-2">
+              {myLeads.length + marketLeads.length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {l === "en"
+                ? "Captured from homeowner form submissions."
+                : "Capturés via les soumissions du formulaire propriétaire."}
+            </p>
+          </div>
+          <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              {l === "en" ? "Firecrawl Market Signals" : "Signaux marché Firecrawl"}
+            </p>
+            <p className="font-display text-2xl font-bold text-foreground mt-2">{permits.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {l === "en"
+                ? "Latest permit opportunities from scraped inventory."
+                : "Dernières opportunités permis depuis l'inventaire scrappé."}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
-          <LeadList leads={myLeads} marketLeads={marketLeads} lang={l} userId={user.id} />
+          <LeadList
+            leads={myLeads}
+            marketLeads={marketLeads}
+            lang={l}
+            aiActions={aiActionMap}
+          />
         </div>
 
         {/* Activity Log */}

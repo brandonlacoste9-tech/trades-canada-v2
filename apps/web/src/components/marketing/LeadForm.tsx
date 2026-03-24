@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Send, CheckCircle } from "lucide-react";
 import { type Lang } from "@/lib/i18n";
@@ -21,9 +21,11 @@ const projectTypeValues = ["general_contractor", "plumbing", "electrical", "roof
 
 export default function LeadForm({ lang, city }: LeadFormProps) {
   const [form, setForm] = useState({ name: "", phone: "", email: "", projectType: "general_contractor" });
+  const [website, setWebsite] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const formRenderedAt = useRef(Date.now());
   const meta = useMetaEvents();
 
   // Fire ViewContent when the form mounts (homeowner audience signal)
@@ -51,9 +53,9 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           phone: form.phone || null,
           project_type: form.projectType,
           language: lang,
-          source: "web",
-          status: "new",
           city: city ?? null,
+          website,
+          form_rendered_at: formRenderedAt.current,
         }),
       });
 
@@ -111,6 +113,15 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <input
+          type="text"
+          value={website}
+          onChange={(e) => setWebsite(e.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="hidden"
+        />
         <input
           type="text"
           required

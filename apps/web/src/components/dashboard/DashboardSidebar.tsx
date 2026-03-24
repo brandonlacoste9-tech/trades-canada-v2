@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Radar, Settings, FileText, LogOut, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Radar, Settings, FileText, LogOut, ChevronRight, Activity } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ export default function DashboardSidebar({ lang }: DashboardSidebarProps) {
     { href: `/${lang}/dashboard`, icon: LayoutDashboard, label: t("dashboard.leads", lang) },
     { href: `/${lang}/dashboard/radar`, icon: Radar, label: t("dashboard.radar", lang) },
     { href: `/${lang}/dashboard/log`, icon: FileText, label: t("dashboard.automationLog", lang) },
+    { href: `/${lang}/dashboard/ops`, icon: Activity, label: lang === "en" ? "Ops Health" : "Santé Ops" },
     { href: `/${lang}/settings`, icon: Settings, label: t("dashboard.settings", lang) },
   ];
 
