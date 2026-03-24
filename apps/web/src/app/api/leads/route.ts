@@ -171,38 +171,52 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    // Autonomous lead qualification (OpenAI if configured, heuristic fallback).
-    const qualification = await qualifyLead({
-      name: parsed.data.name,
-      email: parsed.data.email,
-      phone: parsed.data.phone ?? null,
-      city: parsed.data.city ?? null,
-      projectType,
-      language: parsed.data.language ?? "en",
-    });
-
-    if (insertedLead?.id) {
-      await supabase
-        .from("leads")
-        .update({
-          score: qualification.score,
-          message: qualification.summary,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", insertedLead.id);
-
-      await supabase.from("automated_logs").insert({
-        event_type: "lead.ai_qualified",
-        channel: "ai",
-        status: "sent",
-        subject: `Lead qualified (${qualification.provider})`,
-        lead_id: insertedLead.id,
-        metadata: {
-          score: qualification.score,
-          next_action: qualification.nextAction,
-          provider: qualification.provider,
-        },
+    // Qualification + logs must not fail the HTTP response after a successful insert.
+    let qualification: Awaited<ReturnType<typeof qualifyLead>> | null = null;
+    try {
+      qualification = await qualifyLead({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        phone: parsed.data.phone ?? null,
+        city: parsed.data.city ?? null,
+        projectType,
+        language: parsed.data.language ?? "en",
       });
+
+      if (insertedLead?.id && qualification) {
+        const { error: updateErr } = await supabase
+          .from("leads")
+          .update({
+            score: qualification.score,
+            message: qualification.summary,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", insertedLead.id);
+
+        if (updateErr) {
+          console.error(`${LOG_PREFIX} lead_update_failed`, { requestId, message: updateErr.message });
+        }
+
+        const { error: logErr } = await supabase.from("automated_logs").insert({
+          event_type: "lead.ai_qualified",
+          channel: "ai",
+          status: "sent",
+          subject: `Lead qualified (${qualification.provider})`,
+          lead_id: insertedLead.id,
+          metadata: {
+            score: qualification.score,
+            next_action: qualification.nextAction,
+            provider: qualification.provider,
+          },
+        });
+
+        if (logErr) {
+          console.error(`${LOG_PREFIX} automated_log_failed`, { requestId, message: logErr.message });
+        }
+      }
+    } catch (sideEffectErr: unknown) {
+      const msg = sideEffectErr instanceof Error ? sideEffectErr.message : String(sideEffectErr);
+      console.error(`${LOG_PREFIX} post_insert_failed`, { requestId, message: msg });
     }
 
     console.info(`${LOG_PREFIX} lead_created`, {
@@ -212,9 +226,9 @@ export async function POST(req: NextRequest) {
       projectType,
       city: parsed.data.city ?? null,
       language: parsed.data.language ?? "en",
-      aiProvider: qualification.provider,
-      aiScore: qualification.score,
-      aiNextAction: qualification.nextAction,
+      aiProvider: qualification?.provider,
+      aiScore: qualification?.score,
+      aiNextAction: qualification?.nextAction,
     });
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err: unknown) {

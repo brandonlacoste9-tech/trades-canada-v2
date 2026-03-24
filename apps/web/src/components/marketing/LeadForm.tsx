@@ -60,20 +60,36 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       });
 
       if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
+        const payload = (await res.json().catch(() => ({}))) as { error?: string };
         const msg = payload?.error ?? `HTTP ${res.status}`;
         console.error("[LeadForm] insert error:", msg);
         throw new Error(msg);
       }
 
-      // ── Fire Meta Lead event (client + CAPI) ──────────────────────────────
-      await meta.trackLeadSubmitted(form.email, form.phone, city ?? "canada");
-
+      // Lead is saved — show success first; analytics must never block UX.
       setSuccess(true);
+
+      try {
+        await meta.trackLeadSubmitted(form.email, form.phone, city ?? "canada");
+      } catch (trackErr) {
+        console.warn("[LeadForm] Meta tracking failed (non-blocking):", trackErr);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[LeadForm] submission failed:", msg);
-      setError(lang === "en" ? "Something went wrong. Please try again." : "Une erreur est survenue. Veuillez réessayer.");
+      const isConfig =
+        /credentials not configured|service role|SUPABASE/i.test(msg) ||
+        msg.includes("Invalid API key") ||
+        msg.includes("JWT");
+      setError(
+        isConfig && lang === "en"
+          ? "Our form is temporarily unavailable. Please email us or try again later."
+          : isConfig && lang === "fr"
+            ? "Notre formulaire est temporairement indisponible. Écrivez-nous ou réessayez plus tard."
+            : lang === "en"
+              ? "Something went wrong. Please try again."
+              : "Une erreur est survenue. Veuillez réessayer."
+      );
     } finally {
       setLoading(false);
     }
