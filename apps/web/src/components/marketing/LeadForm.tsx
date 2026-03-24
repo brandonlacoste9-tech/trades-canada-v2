@@ -95,6 +95,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       console.error("[LeadForm] submission failed:", msg, status ?? "", apiCode ?? "");
       const isConfig =
         apiCode === "MISSING_SERVICE_ROLE" ||
+        apiCode === "ANON_KEY_AS_SERVICE_ROLE" ||
         /credentials not configured|service role|SUPABASE/i.test(msg) ||
         msg.includes("Invalid API key") ||
         msg.includes("JWT");

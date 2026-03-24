@@ -32,6 +32,37 @@ const MIN_FORM_FILL_MS = 1200;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const LOG_PREFIX = "[api/leads]";
 
+/** Decode Supabase JWT payload (anon / service_role keys are JWTs). */
+function decodeSupabaseJwtPayload(jwt: string): { role?: string } | null {
+  try {
+    const parts = jwt.split(".");
+    if (parts.length !== 3) return null;
+    let b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4;
+    if (pad) b64 += "=".repeat(4 - pad);
+    const json = atob(b64);
+    return JSON.parse(json) as { role?: string };
+  } catch {
+    return null;
+  }
+}
+
+/** Reject using the anon key as the service role — insert can succeed but SELECT returns fail (RLS). */
+function assertServiceRoleJwt(key: string): void {
+  const payload = decodeSupabaseJwtPayload(key);
+  const role = payload?.role;
+  if (role === "anon") {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is the anon (public) key. In Vercel, set it to the service_role secret from Supabase → Settings → API (not the anon key)."
+    );
+  }
+  if (role && role !== "service_role") {
+    throw new Error(
+      `SUPABASE_SERVICE_ROLE_KEY must be the service_role JWT; this key has role "${role}".`
+    );
+  }
+}
+
 const LeadSchema = z.object({
   name: z.string().min(1).max(200),
   email: z.string().email(),
@@ -51,6 +82,8 @@ function getServiceClient() {
   if (!url || !key) {
     throw new Error("Supabase service role credentials not configured.");
   }
+
+  assertServiceRoleJwt(key);
 
   return createClient(url, key, {
     auth: { persistSession: false },
@@ -162,12 +195,28 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (dbError) {
+      const msgLower = dbError.message.toLowerCase();
+      const looksLikeSelectAfterAnonInsert =
+        dbError.code === "PGRST116" ||
+        msgLower.includes("0 rows") ||
+        msgLower.includes("cannot coerce") ||
+        msgLower.includes("json object requested");
       console.error(`${LOG_PREFIX} db_insert_failed`, {
         requestId,
         ip,
         code: dbError.code,
         message: dbError.message,
       });
+      if (looksLikeSelectAfterAnonInsert) {
+        return NextResponse.json(
+          {
+            error:
+              "Server misconfigured: use the Supabase service_role key in SUPABASE_SERVICE_ROLE_KEY (not the anon key).",
+            code: "ANON_KEY_AS_SERVICE_ROLE",
+          },
+          { status: 500 }
+        );
+      }
       return NextResponse.json(
         { error: dbError.message, code: "DB_INSERT_FAILED" },
         { status: 500 }
@@ -236,9 +285,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error.";
-    const code =
-      /credentials not configured|service role credentials/i.test(msg)
-        ? "MISSING_SERVICE_ROLE"
+    const code = /credentials not configured|service role credentials/i.test(msg)
+      ? "MISSING_SERVICE_ROLE"
+      : /anon \(public\) key|must be the service_role JWT/i.test(msg)
+        ? "ANON_KEY_AS_SERVICE_ROLE"
         : "UNEXPECTED";
     console.error(`${LOG_PREFIX} unexpected_error`, { requestId, ip, message: msg, code });
     return NextResponse.json({ error: msg, code }, { status: 500 });
