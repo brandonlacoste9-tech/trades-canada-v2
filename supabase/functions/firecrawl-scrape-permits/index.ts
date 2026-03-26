@@ -6,14 +6,13 @@ const supabase = createClient(
 );
 
 const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY")!;
+const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
 
 interface FirecrawlResult {
   url: string;
   markdown: string;
   metadata?: { title?: string; description?: string };
 }
-
-const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY")!;
 
 interface ScrapedPermit {
   title: string;
@@ -45,14 +44,16 @@ const PERMIT_SOURCES = [
   { city: "brampton", url: "https://geohub.brampton.ca/datasets/brampton::building-permits-active/explore", label: "Brampton Building Permits" },
   { city: "london", url: "https://opendata.london.ca/datasets/london-ontario::building-permit-applications/explore", label: "London Building Permits" },
   { city: "surrey", url: "https://data.surrey.ca/dataset/building-permits", label: "Surrey Building Permits" },
-  { city: "mississauga", url: "https://data.mississauga.ca/datasets/mississauga::building-permits-monthly/explore", label: "Mississauga Building Permits" }
+  { city: "mississauga", url: "https://data.mississauga.ca/datasets/mississauga::building-permits-monthly/explore", label: "Mississauga Building Permits" },
 ];
 
 async function geocodeAddress(address: string, city: string): Promise<{ lat: number; lng: number } | null> {
   if (!GOOGLE_MAPS_API_KEY || !address) return null;
   try {
     const fullAddress = `${address}, ${city}, Canada`;
-    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${GOOGLE_MAPS_API_KEY}&internalUsageAttributionIds=gmp_mcp_codeassist_v0.1_github`);
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${GOOGLE_MAPS_API_KEY}`
+    );
     const data = await res.json();
     if (data.status === "OK" && data.results?.[0]?.geometry?.location) {
       return data.results[0].geometry.location;
@@ -87,7 +88,7 @@ async function scrapeWithFirecrawl(url: string): Promise<FirecrawlResult | null>
     const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${FIRECRAWL_API_KEY}`,
+        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -97,12 +98,10 @@ async function scrapeWithFirecrawl(url: string): Promise<FirecrawlResult | null>
         timeout: 30000,
       }),
     });
-
     if (!res.ok) {
       console.error(`Firecrawl error for ${url}: ${res.status}`);
       return null;
     }
-
     const data = await res.json();
     return data.data ?? null;
   } catch (err) {
@@ -129,7 +128,6 @@ function parsePermitsFromMarkdown(markdown: string, city: string, sourceUrl: str
       const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 3)).join(" ");
       const projectType = detectProjectType(context);
       const estimatedValue = extractEstimatedValue(context);
-
       const permitMatch = context.match(/(?:permit|permis|#)\s*([\w-]+)/i);
       const permitNumber = permitMatch?.[1] ?? null;
 
@@ -145,21 +143,52 @@ function parsePermitsFromMarkdown(markdown: string, city: string, sourceUrl: str
         estimated_value: estimatedValue,
       });
 
-      if (permits.length >= 20) break; 
+      if (permits.length >= 20) break;
     }
   }
 
   return permits;
 }
 
-Deno.serve(async (req) => {
+async function upsertPermit(permit: ScrapedPermit & { latitude?: number | null; longitude?: number | null }): Promise<boolean> {
+  // Strategy: if permit_number exists, use the unique(url, permit_number) constraint
+  // If no permit_number, use the partial unique index on url WHERE permit_number IS NULL
+  if (permit.permit_number) {
+    const { error } = await supabase
+      .from("scraped_inventory")
+      .upsert(
+        { ...permit, scraped_at: new Date().toISOString() },
+        { onConflict: "url,permit_number", ignoreDuplicates: true }
+      );
+    return !error;
+  } else {
+    // For null permit_number: check if this URL+null already exists, insert if not
+    const { data: existing } = await supabase
+      .from("scraped_inventory")
+      .select("id")
+      .eq("url", permit.url)
+      .is("permit_number", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) return false; // already exists, skip
+
+    const { error } = await supabase
+      .from("scraped_inventory")
+      .insert({ ...permit, scraped_at: new Date().toISOString() });
+
+    return !error;
+  }
+}
+
+Deno.serve(async () => {
   const startTime = Date.now();
   let totalInserted = 0;
   let totalSkipped = 0;
   let totalGeocoded = 0;
   const errors: string[] = [];
 
-  console.log(`Starting Firecrawl permit scrape and Google Geocoding for ${PERMIT_SOURCES.length} cities`);
+  console.log(`Starting Firecrawl permit scrape for ${PERMIT_SOURCES.length} cities`);
 
   for (const source of PERMIT_SOURCES) {
     try {
@@ -187,39 +216,33 @@ Deno.serve(async (req) => {
           }
         }
 
-        const { error } = await supabase
-          .from("scraped_inventory")
-          .upsert(
-            { ...permit, latitude, longitude, scraped_at: new Date().toISOString() },
-            { onConflict: "url,permit_number", ignoreDuplicates: true }
-          );
-
-        if (error) {
-          totalSkipped++;
-        } else {
+        const inserted = await upsertPermit({ ...permit, latitude, longitude });
+        if (inserted) {
           totalInserted++;
+        } else {
+          totalSkipped++;
         }
       }
-    } catch (err: any) {
-      errors.push(`${source.city}: ${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${source.city}: ${msg}`);
     }
   }
 
   const duration = Date.now() - startTime;
 
-  // Log the scrape run
   await supabase.from("automated_logs").insert({
     event_type: "firecrawl.scrape_complete",
     channel: "firecrawl",
     status: errors.length === PERMIT_SOURCES.length ? "failed" : "sent",
-    subject: `Scraped ${totalInserted} permits in ${duration}ms`,
-    metadata: { inserted: totalInserted, skipped: totalSkipped, errors, duration_ms: duration },
+    subject: `Scraped ${totalInserted} permits, geocoded ${totalGeocoded} in ${duration}ms`,
+    metadata: { inserted: totalInserted, skipped: totalSkipped, geocoded: totalGeocoded, errors, duration_ms: duration },
   });
 
-  console.log(`Scrape complete: ${totalInserted} inserted, ${totalSkipped} skipped, ${errors.length} errors`);
+  console.log(`Scrape complete: ${totalInserted} inserted, ${totalSkipped} skipped, ${totalGeocoded} geocoded`);
 
   return new Response(
-    JSON.stringify({ inserted: totalInserted, skipped: totalSkipped, errors, duration_ms: duration }),
+    JSON.stringify({ inserted: totalInserted, skipped: totalSkipped, geocoded: totalGeocoded, errors, duration_ms: duration }),
     { headers: { "Content-Type": "application/json" } }
   );
 });

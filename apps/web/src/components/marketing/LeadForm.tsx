@@ -11,18 +11,55 @@ interface LeadFormProps {
   city?: string; // passed from city landing pages for geo-targeted CAPI
 }
 
-// Values must match the `trade_category` enum in the Supabase DB
+// Values must match the `project_type` enum in the Supabase DB
+// DB enum: hvac, roofing, landscaping, renovations, plumbing, electrical, general, other
 const projectTypes = {
-  en: ["General Contractor", "Plumbing", "Electrical", "Roofing", "HVAC", "Landscaping", "Flooring", "Painting", "Other"],
-  fr: ["Entrepreneur général", "Plomberie", "Électricité", "Toiture", "CVAC", "Aménagement paysager", "Planchers", "Peinture", "Autre"],
+  en: [
+    "General Contractor",
+    "Plumbing",
+    "Electrical",
+    "Roofing",
+    "HVAC",
+    "Landscaping",
+    "Renovations",
+    "Flooring & Painting",
+    "Other",
+  ],
+  fr: [
+    "Entrepreneur général",
+    "Plomberie",
+    "Électricité",
+    "Toiture",
+    "CVAC",
+    "Aménagement paysager",
+    "Rénovations",
+    "Planchers & Peinture",
+    "Autre",
+  ],
 };
 
-const projectTypeValues = ["general_contractor", "plumbing", "electrical", "roofing", "hvac", "landscaping", "flooring", "painting", "other"];
+// Exact DB enum values — must match ProjectType in database.ts
+const projectTypeValues = [
+  "general",
+  "plumbing",
+  "electrical",
+  "roofing",
+  "hvac",
+  "landscaping",
+  "renovations",
+  "other", // flooring & painting → other (closest match in enum)
+  "other",
+];
 
 type LeadSubmitErrorMeta = { status?: number; apiCode?: string };
 
 export default function LeadForm({ lang, city }: LeadFormProps) {
-  const [form, setForm] = useState({ name: "", phone: "", email: "", projectType: "general_contractor" });
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    projectType: "general",
+  });
   const [website, setWebsite] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -42,10 +79,6 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
     setError("");
 
     try {
-      // ── Insert via server-side API route to bypass Supabase anon RLS ──────
-      // The anon Supabase client cannot INSERT into `leads` unless an explicit
-      // RLS policy grants it. Routing through /api/leads uses the service role
-      // key server-side, which always bypasses RLS safely.
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,7 +98,9 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         const raw = await res.text();
         let payload: { error?: string; code?: string; details?: unknown } = {};
         try {
-          payload = raw ? (JSON.parse(raw) as { error?: string; code?: string; details?: unknown }) : {};
+          payload = raw
+            ? (JSON.parse(raw) as { error?: string; code?: string; details?: unknown })
+            : {};
         } catch {
           console.error("[LeadForm] non-JSON error body", res.status, raw.slice(0, 200));
         }
@@ -93,6 +128,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       const status = ext.status;
       const apiCode = ext.apiCode;
       console.error("[LeadForm] submission failed:", msg, status ?? "", apiCode ?? "");
+
       const isConfig =
         apiCode === "MISSING_SERVICE_ROLE" ||
         apiCode === "ANON_KEY_AS_SERVICE_ROLE" ||
@@ -101,7 +137,8 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         msg.includes("JWT");
       const isNotFound = status === 404 || /HTTP 404/i.test(msg);
       const isRateLimited = status === 429 || /too many requests/i.test(msg);
-      const isNetwork = /failed to fetch|networkerror|load failed|aborted|unexpected token/i.test(msg);
+      const isNetwork =
+        /failed to fetch|networkerror|load failed|aborted|unexpected token/i.test(msg);
 
       if (isRateLimited) {
         setError(
@@ -119,7 +156,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         setError(
           lang === "en"
             ? "We could not reach the form service. Check that the site is deployed correctly, or email us directly."
-            : "Impossible d’atteindre le service du formulaire. Vérifiez le déploiement ou écrivez-nous directement."
+            : "Impossible d'atteindre le service du formulaire. Vérifiez le déploiement ou écrivez-nous directement."
         );
       } else if (isConfig) {
         setError(
@@ -131,10 +168,14 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         setError(
           lang === "en"
             ? "We couldn't save your request. Please try again in a few minutes or email us directly."
-            : "Impossible d’enregistrer votre demande. Réessayez dans quelques minutes ou écrivez-nous."
+            : "Impossible d'enregistrer votre demande. Réessayez dans quelques minutes ou écrivez-nous."
         );
       } else {
-        setError(lang === "en" ? "Something went wrong. Please try again." : "Une erreur est survenue. Veuillez réessayer.");
+        setError(
+          lang === "en"
+            ? "Something went wrong. Please try again."
+            : "Une erreur est survenue. Veuillez réessayer."
+        );
       }
     } finally {
       setLoading(false);
@@ -175,6 +216,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Honeypot — hidden from real users, catches bots */}
         <input
           type="text"
           value={website}
@@ -184,10 +226,11 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           aria-hidden="true"
           className="hidden"
         />
+
         <input
           type="text"
           required
-          placeholder={lang === "en" ? "Full Name" : "Nom complet"}
+          placeholder={lang === "en" ? "Full Name *" : "Nom complet *"}
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           className="input-amber"
@@ -202,7 +245,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         <input
           type="email"
           required
-          placeholder={lang === "en" ? "Email Address" : "Adresse courriel"}
+          placeholder={lang === "en" ? "Email Address *" : "Adresse courriel *"}
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           className="input-amber"
@@ -213,13 +256,21 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           className="input-amber"
         >
           {projectTypes[lang].map((label, i) => (
-            <option key={projectTypeValues[i]} value={projectTypeValues[i]} className="bg-background">
+            <option
+              key={`${projectTypeValues[i]}-${i}`}
+              value={projectTypeValues[i]}
+              className="bg-background"
+            >
               {label}
             </option>
           ))}
         </select>
 
-        {error && <p className="text-destructive text-sm">{error}</p>}
+        {error && (
+          <p className="text-destructive text-sm font-medium" role="alert">
+            {error}
+          </p>
+        )}
 
         <button type="submit" disabled={loading} className="btn-amber w-full justify-center">
           {loading ? (

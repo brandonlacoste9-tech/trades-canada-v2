@@ -69,6 +69,8 @@ CREATE TABLE public.scraped_inventory (
     city TEXT,
     project_type TEXT,
     estimated_value NUMERIC,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     scraped_at TIMESTAMPTZ DEFAULT now() NOT NULL,
     CONSTRAINT unique_permit UNIQUE (url, permit_number)
 );
@@ -187,3 +189,18 @@ CREATE POLICY "Users can view own appointments" ON public.appointments FOR SELEC
 
 -- Scraped Inventory: Authenticated can view
 CREATE POLICY "Authenticated can view inventory" ON public.scraped_inventory FOR SELECT TO authenticated USING (true);
+
+-- ── SCHEMA ADDITIONS (April 2026) ───────────────────────────────────────────────
+-- Add geocoding columns to scraped_inventory (used by firecrawl-scrape-permits)
+ALTER TABLE public.scraped_inventory
+  ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+
+-- Spatial index for city-radius queries
+CREATE INDEX IF NOT EXISTS idx_scraped_inventory_coords
+  ON public.scraped_inventory (latitude, longitude)
+  WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
+
+-- Index for city + project_type filtering (Lead Radar dashboard)
+CREATE INDEX IF NOT EXISTS idx_scraped_inventory_city_type
+  ON public.scraped_inventory (city, project_type);

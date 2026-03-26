@@ -176,6 +176,9 @@ export interface Database {
           city: string | null;
           project_type: string | null;
           estimated_value: number | null;
+          // Added in migration 20260326000001
+          latitude: number | null;
+          longitude: number | null;
         };
         Insert: {
           id?: string;
@@ -189,6 +192,8 @@ export interface Database {
           city?: string | null;
           project_type?: string | null;
           estimated_value?: number | null;
+          latitude?: number | null;
+          longitude?: number | null;
         };
         Update: Partial<Database["public"]["Tables"]["scraped_inventory"]["Insert"]>;
         Relationships: [];
