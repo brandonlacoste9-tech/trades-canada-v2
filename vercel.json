@@ -2,5 +2,12 @@
   "framework": "nextjs",
   "installCommand": "pnpm install",
   "buildCommand": "pnpm run build",
-  "outputDirectory": "apps/web/.next"
+  "outputDirectory": "apps/web/.next",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/en",
+      "permanent": false
+    }
+  ]
 }

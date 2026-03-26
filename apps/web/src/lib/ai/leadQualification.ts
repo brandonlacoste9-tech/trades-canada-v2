@@ -39,8 +39,8 @@ function heuristicQualification(input: LeadInput): LeadQualification {
     normalizedScore >= 75
       ? "email_now"
       : normalizedScore >= 60
-        ? "send_booking_link"
-        : "nurture";
+      ? "send_booking_link"
+      : "nurture";
 
   const summary =
     input.language === "fr"
@@ -54,56 +54,69 @@ function heuristicQualification(input: LeadInput): LeadQualification {
   return { score: normalizedScore, summary, nextAction, provider: "heuristic" };
 }
 
+/** Extract JSON from a string that may contain markdown fences */
+function extractJson(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced?.[1]) return fenced[1].trim();
+  const braced = text.match(/\{[\s\S]*\}/);
+  if (braced) return braced[0];
+  return text.trim();
+}
+
 export async function qualifyLead(input: LeadInput): Promise<LeadQualification> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return heuristicQualification(input);
 
+  const prompt = `You are qualifying a contractor-service lead for the Canadian trades market.
+Return ONLY strict JSON with these exact keys:
+- score (integer 0-100)
+- summary (string, max 220 chars, bilingual context: language is "${input.language}")
+- nextAction (exactly one of: "email_now", "send_booking_link", "nurture")
+
+Lead details:
+- name: ${input.name}
+- email: ${input.email}
+- phone: ${input.phone ?? "none"}
+- city: ${input.city ?? "unknown"}
+- projectType: ${input.projectType}
+- language: ${input.language}
+
+Scoring guide: phone provided +15, city known +10, non-other trade +10, urgent trade (hvac/roofing/electrical) +5. Base 45.`;
+
   try {
-    const systemPrompt =
-      "You are a lead qualification assistant for a Canadian contractor platform. " +
-      "Return ONLY valid JSON with keys: score (0-100 integer), summary (max 220 chars), " +
-      'nextAction (one of: "email_now", "send_booking_link", "nurture"). No markdown, no explanation.';
-
-    const userPrompt =
-      `Qualify this contractor-service lead:\n` +
-      `- name: ${input.name}\n` +
-      `- email: ${input.email}\n` +
-      `- phone: ${input.phone ?? "none"}\n` +
-      `- city: ${input.city ?? "unknown"}\n` +
-      `- projectType: ${input.projectType}\n` +
-      `- language: ${input.language}`;
-
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Try OpenAI Responses API (gpt-4.1-mini)
+    const res = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        max_tokens: 256,
-        temperature: 0.2,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        model: "gpt-4.1-mini",
+        input: prompt,
+        temperature: 0.1,
       }),
     });
 
     if (!res.ok) {
-      console.warn(`[leadQualification] OpenAI HTTP ${res.status} — falling back to heuristic`);
+      console.warn(`[leadQualification] OpenAI API ${res.status} — falling back to heuristic`);
       return heuristicQualification(input);
     }
 
     const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      output_text?: string;
+      output?: Array<{ type: string; text?: string; content?: Array<{ type: string; text?: string }> }>;
     };
 
-    const text = data.choices?.[0]?.message?.content?.trim();
-    if (!text) return heuristicQualification(input);
+    // Handle both Responses API formats
+    let rawText: string | undefined =
+      data.output_text ??
+      data.output?.find((o) => o.type === "message")?.content?.find((c) => c.type === "output_text")?.text ??
+      data.output?.find((o) => o.type === "message")?.text;
 
-    const parsed = JSON.parse(text) as {
+    if (!rawText) return heuristicQualification(input);
+
+    const parsed = JSON.parse(extractJson(rawText)) as {
       score?: number;
       summary?: string;
       nextAction?: "email_now" | "send_booking_link" | "nurture";
@@ -111,14 +124,18 @@ export async function qualifyLead(input: LeadInput): Promise<LeadQualification> 
 
     const score = clamp(Math.round(parsed.score ?? 50), 0, 100);
     const summary = (parsed.summary ?? "").slice(0, 220);
-    const nextAction =
-      parsed.nextAction ?? (score >= 70 ? "email_now" : "send_booking_link");
+    const validActions = new Set(["email_now", "send_booking_link", "nurture"]);
+    const nextAction: LeadQualification["nextAction"] = validActions.has(parsed.nextAction ?? "")
+      ? (parsed.nextAction as LeadQualification["nextAction"])
+      : score >= 70
+      ? "email_now"
+      : "send_booking_link";
 
     if (!summary) return heuristicQualification(input);
 
     return { score, summary, nextAction, provider: "openai" };
   } catch (err) {
-    console.warn("[leadQualification] OpenAI error — falling back to heuristic:", err);
+    console.warn("[leadQualification] Parse/fetch error — using heuristic:", err);
     return heuristicQualification(input);
   }
 }

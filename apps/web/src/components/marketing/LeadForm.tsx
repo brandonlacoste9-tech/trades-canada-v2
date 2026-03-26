@@ -11,18 +11,28 @@ interface LeadFormProps {
   city?: string; // passed from city landing pages for geo-targeted CAPI
 }
 
-// Values must match the `project_type` enum in the Supabase DB
-// DB enum: hvac, roofing, landscaping, renovations, plumbing, electrical, general, other
-const projectTypes = {
+// Values MUST exactly match the project_type enum in Supabase:
+// hvac | roofing | landscaping | renovations | plumbing | electrical | general | other
+const PROJECT_TYPE_VALUES = [
+  "general",
+  "plumbing",
+  "electrical",
+  "roofing",
+  "hvac",
+  "landscaping",
+  "renovations",
+  "other",
+] as const;
+
+const PROJECT_TYPE_LABELS = {
   en: [
-    "General Contractor",
+    "General Contracting",
     "Plumbing",
     "Electrical",
     "Roofing",
     "HVAC",
     "Landscaping",
     "Renovations",
-    "Flooring & Painting",
     "Other",
   ],
   fr: [
@@ -33,24 +43,11 @@ const projectTypes = {
     "CVAC",
     "Aménagement paysager",
     "Rénovations",
-    "Planchers & Peinture",
     "Autre",
   ],
 };
 
-// Exact DB enum values — must match ProjectType in database.ts
-const projectTypeValues = [
-  "general",
-  "plumbing",
-  "electrical",
-  "roofing",
-  "hvac",
-  "landscaping",
-  "renovations",
-  "other", // flooring & painting → other (closest match in enum)
-  "other",
-];
-
+type ProjectTypeValue = (typeof PROJECT_TYPE_VALUES)[number];
 type LeadSubmitErrorMeta = { status?: number; apiCode?: string };
 
 export default function LeadForm({ lang, city }: LeadFormProps) {
@@ -58,9 +55,9 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
     name: "",
     phone: "",
     email: "",
-    projectType: "general",
+    projectType: "general" as ProjectTypeValue,
   });
-  const [website, setWebsite] = useState("");
+  const [website, setWebsite] = useState(""); // honeypot
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -89,7 +86,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           project_type: form.projectType,
           language: lang,
           city: city ?? null,
-          website,
+          website, // honeypot field
           form_rendered_at: formRenderedAt.current,
         }),
       });
@@ -98,9 +95,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         const raw = await res.text();
         let payload: { error?: string; code?: string; details?: unknown } = {};
         try {
-          payload = raw
-            ? (JSON.parse(raw) as { error?: string; code?: string; details?: unknown })
-            : {};
+          payload = raw ? (JSON.parse(raw) as typeof payload) : {};
         } catch {
           console.error("[LeadForm] non-JSON error body", res.status, raw.slice(0, 200));
         }
@@ -113,7 +108,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         throw err;
       }
 
-      // Lead is saved — show success first; analytics must never block UX.
+      // Lead saved — show success; analytics must never block UX
       setSuccess(true);
 
       try {
@@ -155,8 +150,8 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       } else if (isNotFound || isNetwork) {
         setError(
           lang === "en"
-            ? "We could not reach the form service. Check that the site is deployed correctly, or email us directly."
-            : "Impossible d'atteindre le service du formulaire. Vérifiez le déploiement ou écrivez-nous directement."
+            ? "We could not reach the form service. Please try again or email us directly."
+            : "Impossible d'atteindre le service. Réessayez ou écrivez-nous directement."
         );
       } else if (isConfig) {
         setError(
@@ -216,7 +211,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Honeypot — hidden from real users, catches bots */}
+        {/* Honeypot — hidden from real users, bots fill it in */}
         <input
           type="text"
           value={website}
@@ -225,49 +220,50 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           autoComplete="off"
           aria-hidden="true"
           className="hidden"
+          name="website"
         />
 
         <input
           type="text"
           required
-          placeholder={lang === "en" ? "Full Name *" : "Nom complet *"}
+          placeholder={lang === "en" ? "Full Name" : "Nom complet"}
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           className="input-amber"
+          autoComplete="name"
         />
         <input
           type="tel"
-          placeholder={lang === "en" ? "Phone Number" : "Numéro de téléphone"}
+          placeholder={lang === "en" ? "Phone Number (recommended)" : "Numéro de téléphone (recommandé)"}
           value={form.phone}
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
           className="input-amber"
+          autoComplete="tel"
         />
         <input
           type="email"
           required
-          placeholder={lang === "en" ? "Email Address *" : "Adresse courriel *"}
+          placeholder={lang === "en" ? "Email Address" : "Adresse courriel"}
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           className="input-amber"
+          autoComplete="email"
         />
         <select
           value={form.projectType}
-          onChange={(e) => setForm({ ...form, projectType: e.target.value })}
+          onChange={(e) => setForm({ ...form, projectType: e.target.value as ProjectTypeValue })}
           className="input-amber"
         >
-          {projectTypes[lang].map((label, i) => (
-            <option
-              key={`${projectTypeValues[i]}-${i}`}
-              value={projectTypeValues[i]}
-              className="bg-background"
-            >
-              {label}
+          {PROJECT_TYPE_VALUES.map((value, i) => (
+            <option key={value} value={value} className="bg-background">
+              {PROJECT_TYPE_LABELS[lang][i]}
             </option>
           ))}
         </select>
 
         {error && (
-          <p className="text-destructive text-sm font-medium" role="alert">
+          <p className="text-destructive text-sm flex items-start gap-2">
+            <span className="shrink-0 mt-0.5">⚠</span>
             {error}
           </p>
         )}
@@ -278,10 +274,16 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           ) : (
             <>
               <Send className="w-4 h-4" />
-              {lang === "en" ? "Submit & Book a Call" : "Soumettre et réserver un appel"}
+              {lang === "en" ? "Get Free Estimate" : "Obtenir l'estimation gratuite"}
             </>
           )}
         </button>
+
+        <p className="text-center text-xs text-muted-foreground">
+          {lang === "en"
+            ? "No commitment. We'll respond within 24 hours."
+            : "Sans engagement. Réponse sous 24 heures."}
+        </p>
       </form>
     </div>
   );
