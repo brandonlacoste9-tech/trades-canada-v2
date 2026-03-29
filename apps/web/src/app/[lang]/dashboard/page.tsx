@@ -60,6 +60,13 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     .limit(6);
   const permits = (permitsData ?? []) as PermitRow[];
 
+  // Fetch this contractor's unlocked lead IDs
+  const { data: unlocksData } = await supabase
+    .from("lead_unlocks")
+    .select("lead_id")
+    .eq("contractor_id", user.id);
+  const unlockedLeadIds = new Set((unlocksData ?? []).map((u) => u.lead_id));
+
   const myLeads = leads?.filter((l) => l.contractor_id === user.id) ?? [];
   const marketLeadsRaw = leads?.filter((lead) => lead.contractor_id === null) ?? [];
   const marketLeads = profileData
@@ -164,7 +171,9 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
                 value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
                 description: le.message || "",
                 createdAt: le.created_at,
-                isUnlocked: false
+                isUnlocked: unlockedLeadIds.has(le.id),
+                email: unlockedLeadIds.has(le.id) ? le.email : undefined,
+                phone: unlockedLeadIds.has(le.id) ? le.phone : undefined,
               })),
               ...permits.map(p => ({
                 id: p.id,
