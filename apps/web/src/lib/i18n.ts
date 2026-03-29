@@ -11,6 +11,7 @@ const translations = {
     "nav.bookCall": "Book a Call",
     "nav.login": "Contractor Login",
     "nav.getQuote": "Get a Quote",
+    "nav.leadMarketplace": "Claim Leads",
 
     // Hero
     "hero.badge": "Canada's #1 Contractor Growth Platform",
@@ -84,6 +85,7 @@ const translations = {
     "dashboard.title": "Contractor Dashboard",
     "dashboard.leads": "My Leads",
     "dashboard.radar": "Lead Radar",
+    "dashboard.marketplace": "Lead Marketplace",
     "dashboard.settings": "Settings",
     "dashboard.automationLog": "Automation Log",
     "dashboard.noActivity": "No activity yet.",
@@ -92,11 +94,31 @@ const translations = {
     "dashboard.converted": "Converted",
     "dashboard.revenue": "Est. Revenue",
     "dashboard.claimLead": "Claim Lead",
+    "dashboard.unlockLead": "Unlock Lead",
     "dashboard.claimed": "Claimed",
     "dashboard.heatScore": "Heat Score",
     "dashboard.source": "Source",
     "dashboard.location": "Location",
     "dashboard.noLeads": "No market leads available right now.",
+    "dashboard.availableLeads": "Available Leads",
+    "dashboard.findWork": "Find Work",
+    "dashboard.premiumOnly": "Premium Lead",
+    "dashboard.unlockToView": "Unlock to view contact details",
+
+    // Marketplace
+    "marketplace.title": "Lead Marketplace",
+    "marketplace.subtitle": "Real-time verified trades opportunities across Canada.",
+    "marketplace.searchPlaceholder": "Search by city or project...",
+    "marketplace.filters": "Filters",
+    "marketplace.allCategories": "All Categories",
+    "marketplace.stats.newToday": "New Leads Today",
+    "marketplace.stats.totalMarket": "Total Est. Value",
+    "marketplace.stats.quickUnlock": "Avg. Intake Time",
+    "marketplace.stats.premiumLeads": "Available Now",
+    "marketplace.plumbing": "Plumbing",
+    "marketplace.electrical": "Electrical",
+    "marketplace.hvac": "HVAC",
+    "marketplace.proposeSource": "Propose a Local Source to Scrape",
 
     // Settings
     "settings.title": "Account Settings",
@@ -137,6 +159,7 @@ const translations = {
     "nav.bookCall": "Réserver un appel",
     "nav.login": "Connexion entrepreneur",
     "nav.getQuote": "Obtenir un devis",
+    "nav.leadMarketplace": "Réclamer des leads",
 
     // Hero
     "hero.badge": "La plateforme #1 de croissance pour entrepreneurs au Canada",
@@ -210,6 +233,7 @@ const translations = {
     "dashboard.title": "Tableau de bord entrepreneur",
     "dashboard.leads": "Mes leads",
     "dashboard.radar": "Radar de leads",
+    "dashboard.marketplace": "Marché de leads",
     "dashboard.settings": "Paramètres",
     "dashboard.automationLog": "Journal d'automatisation",
     "dashboard.noActivity": "Aucune activité pour l'instant.",
@@ -218,11 +242,31 @@ const translations = {
     "dashboard.converted": "Convertis",
     "dashboard.revenue": "Revenus estimés",
     "dashboard.claimLead": "Réclamer le lead",
+    "dashboard.unlockLead": "Débloquer le lead",
     "dashboard.claimed": "Réclamé",
     "dashboard.heatScore": "Score de chaleur",
     "dashboard.source": "Source",
     "dashboard.location": "Emplacement",
     "dashboard.noLeads": "Aucun lead de marché disponible pour l'instant.",
+    "dashboard.availableLeads": "Leads disponibles",
+    "dashboard.findWork": "Trouver du travail",
+    "dashboard.premiumOnly": "Lead Premium",
+    "dashboard.unlockToView": "Débloquer pour voir les détails",
+
+    // Marketplace
+    "marketplace.title": "Marché des Leads",
+    "marketplace.subtitle": "Opportunités vérifiées en temps réel partout au Canada.",
+    "marketplace.searchPlaceholder": "Rechercher par ville ou projet...",
+    "marketplace.filters": "Filtres",
+    "marketplace.allCategories": "Toutes les catégories",
+    "marketplace.stats.newToday": "Nouveaux leads aujourd'hui",
+    "marketplace.stats.totalMarket": "Valeur totale est.",
+    "marketplace.stats.quickUnlock": "Temps d'admission moy.",
+    "marketplace.stats.premiumLeads": "Disponibles maintenant",
+    "marketplace.plumbing": "Plomberie",
+    "marketplace.electrical": "Électricité",
+    "marketplace.hvac": "CVAC",
+    "marketplace.proposeSource": "Proposer une source locale à extraire",
 
     // Settings
     "settings.title": "Paramètres du compte",
@@ -266,4 +310,8 @@ export function t(key: TranslationKey, lang: Lang): string {
 
 export function isValidLang(lang: string): lang is Lang {
   return locales.includes(lang as Lang);
+}
+
+export function useTranslations(lang: Lang) {
+  return (key: TranslationKey) => t(key, lang);
 }

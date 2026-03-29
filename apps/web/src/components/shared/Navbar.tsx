@@ -26,6 +26,7 @@ export default function Navbar({ lang }: NavbarProps) {
 
   const navLinks = [
     { href: `/${lang}#features`, label: t("nav.features", lang) },
+    { href: `/${lang}/dashboard`, label: t("nav.leadMarketplace", lang) },
     { href: `/${lang}#pricing`, label: t("nav.pricing", lang) },
     { href: `/${lang}/booking`, label: t("nav.bookCall", lang) },
   ];
