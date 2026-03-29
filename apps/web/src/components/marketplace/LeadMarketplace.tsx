@@ -6,7 +6,6 @@ import {
   Plus, 
   Search, 
   SlidersHorizontal,
-  ChevronDown,
   Building2,
   Zap,
   PipetteIcon as Pipe,
@@ -65,8 +64,23 @@ const MOCK_LEADS = [
   }
 ];
 
+interface LeadData {
+  id: string;
+  title: string;
+  source: string;
+  location: string;
+  projectType: string;
+  value?: string | number;
+  description?: string;
+  createdAt: string | Date;
+  isUnlocked?: boolean;
+  status?: string;
+  email?: string;
+  phone?: string;
+}
+
 interface LeadMarketplaceProps {
-  initialLeads?: any[];
+  initialLeads?: LeadData[];
   lang: Lang;
 }
 

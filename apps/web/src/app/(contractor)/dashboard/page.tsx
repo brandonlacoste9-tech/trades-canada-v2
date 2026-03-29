@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import LeadMarketplace from "@/components/marketplace/LeadMarketplace";
 
 export default function ContractorDashboardPage() {
@@ -17,20 +18,26 @@ export default function ContractorDashboardPage() {
           
           <div className="flex items-center gap-4 bg-card/40 p-2 rounded-2xl border border-border/50 backdrop-blur-md">
             <div className="flex -space-x-3 overflow-hidden p-1">
-               <img
+               <Image
                 className="inline-block h-8 w-8 rounded-full ring-2 ring-background grayscale hover:grayscale-0 transition-all cursor-pointer"
                 src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
                 alt="Member"
+                width={32}
+                height={32}
               />
-              <img
+              <Image
                 className="inline-block h-8 w-8 rounded-full ring-2 ring-background grayscale hover:grayscale-0 transition-all cursor-pointer"
                 src="https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
                 alt="Member"
+                width={32}
+                height={32}
               />
-              <img
+              <Image
                 className="inline-block h-8 w-8 rounded-full ring-2 ring-background grayscale hover:grayscale-0 transition-all cursor-pointer"
                 src="https://images.unsplash.com/photo-1550525811-e5869dd03032?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
                 alt="Member"
+                width={32}
+                height={32}
               />
             </div>
             <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-2">
