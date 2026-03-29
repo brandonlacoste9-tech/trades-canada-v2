@@ -265,6 +265,70 @@ export async function POST(req: NextRequest) {
         if (logErr) {
           console.error(`${LOG_PREFIX} automated_log_failed`, { requestId, message: logErr.message });
         }
+
+        // ── Notifications ──
+        // 1. Enqueue confirmation email for the lead
+        try {
+          const emailSubject = parsed.data.language === "fr" 
+            ? "Nous avons bien reçu votre demande — Trades-Canada"
+            : "We received your request — Trades-Canada";
+          
+          const emailHtml = parsed.data.language === "fr"
+            ? `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1f2937;">
+                <h2 style="color: #d97706;">Merci ${parsed.data.name}!</h2>
+                <p>Nous avons bien reçu votre demande pour un projet de <strong>${projectType}</strong>.</p>
+                <div style="background: #fffbeb; border: 1px solid #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; color: #92400e;"><strong>Résumé de l'analyse:</strong></p>
+                  <p style="margin: 5px 0 0 0;">${qualification.summary}</p>
+                </div>
+                <p>Un entrepreneur qualifié vous contactera prochainement.</p>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+                <p style="font-size: 12px; color: #6b7280;">© 2026 Trades-Canada. Tous droits réservés.</p>
+              </div>
+            `
+            : `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1f2937;">
+                <h2 style="color: #d97706;">Thanks ${parsed.data.name}!</h2>
+                <p>We've received your request for a <strong>${projectType}</strong> project.</p>
+                <div style="background: #fffbeb; border: 1px solid #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; color: #92400e;"><strong>AI Summary:</strong></p>
+                  <p style="margin: 5px 0 0 0;">${qualification.summary}</p>
+                </div>
+                <p>A qualified contractor will be in touch with you shortly.</p>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+                <p style="font-size: 12px; color: #6b7280;">© 2026 Trades-Canada. All rights reserved.</p>
+              </div>
+            `;
+
+          await supabase.rpc("enqueue_email", {
+            queue_name: "email_queue",
+            payload: {
+              to: parsed.data.email,
+              subject: emailSubject,
+              html: emailHtml,
+              template_name: "lead_confirmation",
+              metadata: { lead_id: insertedLead.id }
+            }
+          });
+
+          // 2. Trigger worker functions (asynchronous, don't wait for completion)
+          // Trigger the email processor to send the enqueued email immediately
+          supabase.functions.invoke("send-email-queue").catch(e => 
+            console.error(`${LOG_PREFIX} email_trigger_failed`, { requestId, message: e.message })
+          );
+
+          // Trigger the telegram alert function for contractors
+          supabase.functions.invoke("telegram-lead-alert", {
+            body: { lead_id: insertedLead.id }
+          }).catch(e => 
+            console.error(`${LOG_PREFIX} telegram_trigger_failed`, { requestId, message: e.message })
+          );
+
+          console.info(`${LOG_PREFIX} notifications_triggered`, { requestId, leadId: insertedLead.id });
+        } catch (notifErr: any) {
+          console.error(`${LOG_PREFIX} notifications_failed`, { requestId, message: notifErr.message });
+        }
       }
     } catch (sideEffectErr: unknown) {
       const msg = sideEffectErr instanceof Error ? sideEffectErr.message : String(sideEffectErr);
