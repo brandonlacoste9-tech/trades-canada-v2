@@ -13,10 +13,10 @@ interface BookingPageProps {
 export async function generateMetadata({ params }: BookingPageProps): Promise<Metadata> {
   const { lang } = await params;
   return {
-    title: lang === "fr" ? "Réserver une démo | Trades-Canada" : "Book a Demo | Trades-Canada",
+    title: lang === "fr" ? "Rejoindre le réseau | Trades-Canada" : "Join the Network | Trades-Canada",
     description: lang === "fr"
-      ? "Réservez une démo gratuite de la plateforme avec l'équipe Trades-Canada."
-      : "Book a free platform demo with the Trades-Canada team.",
+      ? "Demandez l'accès au premier réseau de génération de leads pour les professionnels de la construction au Canada."
+      : "Request access to Canada's top lead generation network for home service professionals.",
   };
 }
 
@@ -24,23 +24,23 @@ export async function generateStaticParams() {
   return [{ lang: "en" }, { lang: "fr" }];
 }
 
-export default async function BookingPage({ params }: BookingPageProps) {
+export default async function JoinPage({ params }: BookingPageProps) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
   const l = lang as Lang;
 
   const benefits = l === "en"
     ? [
-        "Marketplace walkthrough & lead quality audit",
+        "Instant access to local market leads",
         "Bilingual lead targeting setup for your city",
-        "Lead Radar setup & data intelligence overview",
-        "No commitment — see the dashboard in action",
+        "Real-time Lead Radar & data intelligence",
+        "Pay only for the leads you need",
       ]
     : [
-        "Visite du marché et audit de la qualité des leads",
+        "Accès instantané aux leads du marché local",
         "Configuration du ciblage des leads bilingues",
-        "Aperçu du Lead Radar et de l'intelligence des données",
-        "Sans engagement — voyez le tableau de bord en action",
+        "Aperçu du Lead Radar et intelligence des données",
+        "Payez seulement pour les leads dont vous avez besoin",
       ];
 
   return (
@@ -56,15 +56,15 @@ export default async function BookingPage({ params }: BookingPageProps) {
               <div>
                 <div className="section-label w-fit mb-4">
                   <CalendarDays className="w-3.5 h-3.5" />
-                  {l === "en" ? "Free Platform Demo" : "Démo gratuite"}
+                  {l === "en" ? "Network Access" : "Accès au réseau"}
                 </div>
                 <h1 className="heading-lg mb-4">
                   {l === "en" ? "Let's Scale Your Business" : "Faisons croître votre entreprise"}
                 </h1>
                 <p className="text-muted-foreground text-lg leading-relaxed mb-8">
                   {l === "en"
-                    ? "Book a free walkthrough of our lead generation platform. We'll show you how to find, track, and claim high-quality leads in your local market."
-                    : "Réservez une visite gratuite de notre plateforme de génération de leads. Nous vous montrerons comment trouver, suivre et réclamer des leads de haute qualité dans votre marché local."}
+                    ? "Request access to our lead generation platform. Find, track, and buy high-quality leads in your local market without any required phone calls or demos."
+                    : "Demandez l'accès à notre plateforme de génération de leads. Trouvez, suivez et achetez des leads de haute qualité dans votre marché local, sans appels téléphoniques obligatoires ni démos."}
                 </p>
 
                 <div className="space-y-3 mb-8">
@@ -81,12 +81,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
                     <Clock className="w-5 h-5 text-amber-400 shrink-0" />
                     <div>
                       <p className="font-display font-semibold text-sm text-foreground">
-                        {l === "en" ? "Custom Onboarding Demo" : "Démo d'intégration personnalisée"}
+                        {l === "en" ? "Instant Dashboard Access" : "Accès instantané au tableau de bord"}
                       </p>
                       <p className="text-muted-foreground text-xs">
                         {l === "en"
-                          ? "Via Google Meet or async video"
-                          : "Via Google Meet ou vidéo asynchrone"}
+                          ? "Browse the marketplace immediately"
+                          : "Parcourez le marché immédiatement"}
                       </p>
                     </div>
                   </div>
