@@ -202,12 +202,12 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
   return (
     <div className="glass-card cyber-border rounded-2xl p-8">
       <h3 className="font-display font-bold text-xl mb-2">
-        {lang === "en" ? "Get Your Free Estimate" : "Obtenez votre estimation gratuite"}
+        {lang === "en" ? "Request Platform Access" : "Demander l'accès à la plateforme"}
       </h3>
       <p className="text-muted-foreground text-sm mb-6">
         {lang === "en"
-          ? "Tell us about your business and we'll build your custom growth plan."
-          : "Parlez-nous de votre entreprise et nous créerons votre plan de croissance personnalisé."}
+          ? "Tell us about your business to get started with our local lead network."
+          : "Parlez-nous de votre entreprise pour démarrer avec notre réseau local de leads."}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -274,7 +274,7 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           ) : (
             <>
               <Send className="w-4 h-4" />
-              {lang === "en" ? "Get Free Estimate" : "Obtenir l'estimation gratuite"}
+              {lang === "en" ? "Request Access" : "Demander l'accès"}
             </>
           )}
         </button>
