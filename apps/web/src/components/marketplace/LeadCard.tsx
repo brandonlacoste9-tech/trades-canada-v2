@@ -30,7 +30,6 @@ interface LeadCardProps {
 }
 
 const LeadCard: React.FC<LeadCardProps> = ({
-  id: _id,
   title,
   source,
   location,
@@ -39,7 +38,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
   description,
   createdAt,
   isUnlocked = false,
-  status: _status = "available",
   email,
   phone,
   lang = "en"

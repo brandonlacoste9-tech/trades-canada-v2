@@ -109,7 +109,6 @@ const translations = {
     "dashboard.unlocked": "Unlocked",
     "dashboard.locked": "LOCKED",
     "dashboard.viewDetails": "View Details",
-    "dashboard.unlockLead": "Unlock Lead",
 
     // Marketplace
     "marketplace.title": "Lead Marketplace",
@@ -263,7 +262,6 @@ const translations = {
     "dashboard.unlocked": "Débloqué",
     "dashboard.locked": "VERROUILLÉ",
     "dashboard.viewDetails": "Voir les détails",
-    "dashboard.unlockLead": "Débloquer le lead",
 
     // Marketplace
     "marketplace.title": "Marché des Leads",
