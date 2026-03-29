@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 // Authenticated route. Checks the contractor's subscription plan lead_limit,
 // counts how many they've already unlocked this billing cycle, then inserts
 // into lead_unlocks if they have capacity left.
+//
+// NOTE: subscription_plans and lead_unlocks are new tables not yet reflected
+// in the generated database.ts types — all queries against them use explicit
+// `as` casts to avoid TypeScript inferring `never`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -32,30 +36,30 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Fetch contractor's profile and subscription tier
-  const { data: profile, error: profileErr } = await supabase
+  // profiles.subscription_tier may not be in generated types yet — cast to known shape
+  const { data: profileRaw, error: profileErr } = await supabase
     .from("profiles")
     .select("subscription_tier")
     .eq("id", user.id)
     .single();
 
-  if (profileErr || !profile) {
+  if (profileErr || !profileRaw) {
     console.error("[unlock] profile fetch error", profileErr);
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
 
+  const profile = profileRaw as { subscription_tier: string | null };
+
   // 4. Fetch matching subscription plan to get lead_limit
+  // subscription_plans is a new table not yet in generated types — cast explicitly
   const tier = profile.subscription_tier ?? "starter";
-  const { data: plan, error: planErr } = await supabase
+  const { data: planRaw } = await supabase
     .from("subscription_plans")
     .select("lead_limit")
     .eq("id", tier)
     .single();
 
-  if (planErr || !plan) {
-    // If plan lookup fails, still allow — treat as unlimited
-    console.warn("[unlock] plan not found for tier:", tier);
-  }
-
+  const plan = planRaw as { lead_limit: number | null } | null;
   const leadLimit: number | null = plan?.lead_limit ?? null;
 
   // 5. If plan has a lead_limit, count monthly unlocks
@@ -64,11 +68,14 @@ export async function POST(req: NextRequest) {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const { count, error: countErr } = await supabase
+    // lead_unlocks is a new table — use untyped client to avoid `never` inference
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
+    const { count, error: countErr } = await db
       .from("lead_unlocks")
       .select("id", { count: "exact", head: true })
       .eq("contractor_id", user.id)
-      .gte("unlocked_at", startOfMonth.toISOString());
+      .gte("unlocked_at", startOfMonth.toISOString()) as { count: number | null; error: unknown };
 
     if (countErr) {
       console.error("[unlock] count error", countErr);
@@ -92,14 +99,14 @@ export async function POST(req: NextRequest) {
   }
 
   // 6. Insert the unlock — UNIQUE constraint prevents duplicates
-  const { error: insertErr } = await supabase.from("lead_unlocks").insert({
-    contractor_id: user.id,
-    lead_id: leadId,
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: insertErr } = await (supabase as any)
+    .from("lead_unlocks")
+    .insert({ contractor_id: user.id, lead_id: leadId });
 
   if (insertErr) {
     // 23505 = unique_violation (already unlocked)
-    if (insertErr.code === "23505") {
+    if ((insertErr as { code?: string }).code === "23505") {
       return NextResponse.json(
         { error: "ALREADY_UNLOCKED", message: "You've already unlocked this lead." },
         { status: 409 }
@@ -120,7 +127,6 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (leadErr || !lead) {
-    // Unlock succeeded but we couldn't fetch contact data — still a success
     return NextResponse.json({ success: true, lead: null });
   }
 
