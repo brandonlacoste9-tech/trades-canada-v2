@@ -19,54 +19,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Lang, useTranslations } from "@/lib/i18n";
 
-// Mock Data representing both scraped permits and direct leads
-const MOCK_LEADS = [
-  {
-    id: "lead-1",
-    title: "Full Home Plumbing Overhaul",
-    source: "Direct Request",
-    location: "Toronto, ON",
-    projectType: "plumbing",
-    value: "$4,500 - $6,000",
-    description: "Homeowner looking for a full replacement of aging copper piping with PEX. Requires permit handling and inspection support.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 45), // 45 mins ago
-    isUnlocked: true
-  },
-  {
-    id: "sc-1",
-    title: "Commercial Electrical Permit",
-    source: "Municipal Data",
-    location: "Montreal, QC",
-    projectType: "electrical",
-    value: "$12,300 (Est.)",
-    description: "New commercial unit buildup. Lighting, power distribution, and data cabling required for 2,500 sq ft office space.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 120), // 2 hours ago
-    isUnlocked: false
-  },
-  {
-    id: "sc-2",
-    title: "Residential HVAC Install",
-    source: "Municipal Data",
-    location: "Vancouver, BC",
-    projectType: "hvac",
-    value: "$8,500 (Est.)",
-    description: "Heat pump installation permit on a detached residential property. Multi-zone system installation pending.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
-    isUnlocked: false
-  },
-  {
-    id: "lead-2",
-    title: "Emergency Panel Upgrade",
-    source: "Direct Request",
-    location: "Halifax, NS",
-    projectType: "electrical",
-    value: "$2,800",
-    description: "Customer reported flickering lights and burnt smell from main 100A panel. Urgent replacement to 200A required.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8), // 8 hours ago
-    isUnlocked: false
-  }
-];
-
 interface LeadData {
   id: string;
   title: string;

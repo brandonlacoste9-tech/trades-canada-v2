@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidLang, t, type Lang } from "@/lib/i18n";
 import { notFound, redirect } from "next/navigation";
 import type { Database } from "@/types/database";
-import LeadList from "@/components/dashboard/LeadList";
+
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import LeadMarketplace from "@/components/marketplace/LeadMarketplace";
 import { evaluateLeadEligibility } from "@/lib/leadEligibility";
@@ -61,11 +61,14 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   const permits = (permitsData ?? []) as PermitRow[];
 
   // Fetch this contractor's unlocked lead IDs
-  const { data: unlocksData } = await supabase
+  // lead_unlocks is a new table not yet in generated types — cast to known shape
+  const { data: unlocksRaw } = await supabase
     .from("lead_unlocks")
     .select("lead_id")
     .eq("contractor_id", user.id);
-  const unlockedLeadIds = new Set((unlocksData ?? []).map((u) => u.lead_id));
+  const unlockedLeadIds = new Set(
+    ((unlocksRaw ?? []) as { lead_id: string }[]).map((u) => u.lead_id)
+  );
 
   const myLeads = leads?.filter((l) => l.contractor_id === user.id) ?? [];
   const marketLeadsRaw = leads?.filter((lead) => lead.contractor_id === null) ?? [];
