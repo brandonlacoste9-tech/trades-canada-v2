@@ -23,12 +23,12 @@ export async function generateMetadata({ params }: CityPageProps): Promise<Metad
   const province = isFr ? city.provinceFr : city.province;
 
   const title = isFr
-    ? `Entrepreneurs de ${cityName} — Génération de Leads & SEO | Trades-Canada`
-    : `${cityName} Contractors — Lead Generation & SEO | Trades-Canada`;
+    ? `Entrepreneurs de ${cityName} — Génération de leads bilingue | Trades-Canada`
+    : `${cityName} Contractors — Bilingual Lead Generation | Trades-Canada`;
 
   const description = isFr
-    ? `Obtenez plus de leads en tant qu'entrepreneur à ${cityName}, ${province}. SEO bilingue, automatisation et génération de leads pour les métiers de ${cityName}.`
-    : `Get more leads as a contractor in ${cityName}, ${province}. Bilingual SEO, automation, and lead generation built for ${cityName} trades.`;
+    ? `Obtenez plus de leads en tant qu'entrepreneur à ${cityName}, ${province}. Réseau de leads bilingue, automatisation et génération de leads pour les métiers de ${cityName}.`
+    : `Get more leads as a contractor in ${cityName}, ${province}. Bilingual lead network, automation, and real-time alerts built for ${cityName} trades.`;
 
   return {
     title,
@@ -56,7 +56,7 @@ export async function generateStaticParams() {
 }
 
 const cityFeatures = [
-  { icon: Search, en: "Bilingual SEO (EN/FR)", fr: "SEO bilingue (EN/FR)" },
+  { icon: Search, en: "Bilingual Lead Network", fr: "Réseau de leads bilingue" },
   { icon: Target, en: "AI Lead Targeting", fr: "Ciblage de leads par IA" },
   { icon: Zap, en: "Smart Automation", fr: "Automatisation intelligente" },
   { icon: CalendarDays, en: "Planexa Scheduling", fr: "Planification Planexa" },
@@ -153,8 +153,8 @@ export default async function CityPage({ params }: CityPageProps) {
                 <div>
                   <h2 className="heading-md mb-6">
                     {l === "en"
-                      ? `What We Build for ${cityName} Contractors`
-                      : `Ce que nous construisons pour les entrepreneurs de ${cityName}`}
+                      ? `The Engine for ${cityName} Contractors`
+                      : `Le moteur pour les entrepreneurs de ${cityName}`}
                   </h2>
                   <div className="space-y-4">
                     {cityFeatures.map(({ icon: Icon, en, fr }) => (

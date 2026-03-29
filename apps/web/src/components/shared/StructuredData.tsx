@@ -36,8 +36,8 @@ export function OrganizationSchema({ lang }: OrganizationSchemaProps) {
         },
         description:
           lang === "en"
-            ? "Canada's #1 contractor growth platform. AI-powered lead generation, bilingual SEO, and real-time Telegram alerts for Canadian trades businesses."
-            : "La plateforme de croissance #1 pour les entrepreneurs au Canada. Génération de prospects par IA, référencement bilingue et alertes Telegram en temps réel.",
+            ? "Canada's #1 contractor growth platform. AI-powered lead generation, bilingual lead network, and real-time Telegram alerts for Canadian trades businesses."
+            : "La plateforme de croissance #1 pour les entrepreneurs au Canada. Génération de prospects par IA, réseau de leads bilingue et alertes Telegram en temps réel.",
         foundingDate: "2024",
         areaServed: {
           "@type": "Country",
@@ -45,7 +45,7 @@ export function OrganizationSchema({ lang }: OrganizationSchemaProps) {
         },
         knowsAbout: [
           "Contractor Lead Generation",
-          "SEO for Trades",
+          "Homeowner Lead Source",
           "Building Permit Intelligence",
           "Bilingual Marketing Canada",
         ],
@@ -105,7 +105,7 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
   const faqEn = [
     {
       q: `How do contractors get leads in ${cityName}?`,
-      a: `Trades-Canada connects ${cityName} contractors with homeowners through real-time Telegram alerts, building permit intelligence, and a bilingual SEO-optimized lead network. Contractors receive new job leads within 60 seconds of a homeowner submitting a request.`,
+      a: `Trades-Canada connects ${cityName} contractors with homeowners through real-time Telegram alerts, building permit intelligence, and a bilingual lead network. Contractors receive new job leads within 60 seconds of a homeowner submitting a request.`,
     },
     {
       q: `What trades are covered in ${cityName}?`,
@@ -124,7 +124,7 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
   const faqFr = [
     {
       q: `Comment les entrepreneurs obtiennent-ils des prospects à ${cityName}?`,
-      a: `Trades-Canada connecte les entrepreneurs de ${cityName} avec des propriétaires via des alertes Telegram en temps réel, l'intelligence des permis de construction et un réseau de génération de prospects bilingue optimisé pour le référencement. Les entrepreneurs reçoivent de nouveaux prospects en moins de 60 secondes.`,
+      a: `Trades-Canada connecte les entrepreneurs de ${cityName} avec des propriétaires via des alertes Telegram en temps réel, l'intelligence des permis de construction et un réseau de génération de prospects bilingue. Les entrepreneurs reçoivent de nouveaux prospects en moins de 60 secondes.`,
     },
     {
       q: `Quels métiers sont couverts à ${cityName}?`,
@@ -147,8 +147,8 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
         name: `Trades-Canada ${cityName}`,
         description:
           lang === "en"
-            ? `Contractor lead generation and growth platform serving ${cityName}, ${province}. Real-time job alerts, building permit intelligence, and bilingual SEO for ${cityName} trades businesses.`
-            : `Plateforme de génération de prospects pour entrepreneurs à ${cityName}, ${province}. Alertes d'emploi en temps réel et référencement bilingue.`,
+            ? `Contractor lead generation and growth platform serving ${cityName}, ${province}. Real-time job alerts, building permit intelligence, and a bilingual lead network for ${cityName} trades businesses.`
+            : `Plateforme de génération de prospects pour entrepreneurs à ${cityName}, ${province}. Alertes d'emploi en temps réel et réseau de leads bilingue.`,
         url: `https://trades-canada.com/${lang}/city/${citySlug}`,
         areaServed: {
           "@type": "City",
@@ -191,7 +191,7 @@ export function HomepageFAQSchema({ lang }: { lang: "en" | "fr" }) {
   const faqEn = [
     {
       q: "What is Trades-Canada?",
-      a: "Trades-Canada is Canada's #1 contractor growth platform. It provides real-time homeowner lead alerts via Telegram, building permit intelligence (Lead Radar), bilingual EN/FR SEO landing pages, and automated marketing for Canadian trades businesses. Plans start at $199 CAD/month.",
+      a: "Trades-Canada is Canada's #1 contractor growth platform. It provides real-time homeowner lead alerts via Telegram, building permit intelligence (Lead Radar), a bilingual EN/FR lead network, and automated marketing for Canadian trades businesses. Plans start at $199 CAD/month.",
     },
     {
       q: "How does Trades-Canada compare to HomeStars?",
@@ -214,7 +214,7 @@ export function HomepageFAQSchema({ lang }: { lang: "en" | "fr" }) {
   const faqFr = [
     {
       q: "Qu'est-ce que Trades-Canada?",
-      a: "Trades-Canada est la plateforme de croissance #1 pour les entrepreneurs au Canada. Elle fournit des alertes de prospects en temps réel via Telegram, l'intelligence des permis de construction (Radar de prospects), des pages d'atterrissage SEO bilingues EN/FR et du marketing automatisé pour les entreprises de métiers canadiennes. Les plans commencent à 199 $ CAD/mois.",
+      a: "Trades-Canada est la plateforme de croissance #1 pour les entrepreneurs au Canada. Elle fournit des alertes de prospects en temps réel via Telegram, l'intelligence des permis de construction (Radar de prospects), un réseau de leads bilingue EN/FR et du marketing automatisé pour les entreprises de métiers canadiennes. Les plans commencent à 199 $ CAD/mois.",
     },
     {
       q: "Comment Trades-Canada se compare-t-il à HomeStars?",

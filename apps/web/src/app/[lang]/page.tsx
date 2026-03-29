@@ -22,8 +22,8 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
       ? "Trades-Canada — La plateforme #1 de croissance pour entrepreneurs canadiens"
       : "Trades-Canada — Canada's #1 Contractor Growth Platform",
     description: isFr
-      ? "La plateforme tout-en-un de site web, SEO et automatisation conçue pour les métiers canadiens. Génération de leads bilingue EN/FR d'un océan à l'autre."
-      : "The all-in-one Website, SEO, and Automation platform built for Canadian Trades. Bilingual EN/FR lead generation from coast to coast.",
+      ? "La plateforme tout-en-un de génération de leads, radar et marché conçue pour les métiers canadiens. Moteur de leads bilingue EN/FR d'un océan à l'autre."
+      : "The all-in-one Lead Generation, Radar, and Marketplace platform built for Canadian Trades. Bilingual EN/FR lead generation engine from coast to coast.",
     alternates: {
       canonical: `https://trades-canada.com/${lang}`,
       languages: {

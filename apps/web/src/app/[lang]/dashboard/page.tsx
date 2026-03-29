@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Database } from "@/types/database";
 import LeadList from "@/components/dashboard/LeadList";
 import DashboardStats from "@/components/dashboard/DashboardStats";
+import LeadMarketplace from "@/components/marketplace/LeadMarketplace";
 import { evaluateLeadEligibility } from "@/lib/leadEligibility";
 
 interface DashboardPageProps {
@@ -110,7 +111,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">
-              {l === "en" ? "Website Form Leads" : "Leads formulaire web"}
+              {l === "en" ? "Direct Network Leads" : "Leads directs du réseau"}
             </p>
             <p className="font-display text-2xl font-bold text-foreground mt-2">
               {myLeads.length + marketLeads.length}
@@ -135,13 +136,48 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2">
-          <LeadList
-            leads={myLeads}
-            marketLeads={marketLeads}
-            lang={l}
-            aiActions={aiActionMap}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="xl:col-span-3">
+          <LeadMarketplace 
+            lang={l} 
+            initialLeads={[
+              ...myLeads.map(le => ({
+                id: le.id,
+                title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : (l === 'en' ? "Direct Inquiry" : "Demande directe"),
+                source: l === 'en' ? "Direct Request" : "Demande directe",
+                location: le.city || 'Quebec, QC',
+                projectType: le.project_type,
+                value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
+                description: le.message || "",
+                createdAt: le.created_at,
+                isUnlocked: true,
+                status: le.status,
+                email: le.email,
+                phone: le.phone
+              })),
+              ...marketLeads.map(le => ({
+                id: le.id,
+                title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : (l === 'en' ? "Direct Inquiry" : "Demande directe"),
+                source: l === 'en' ? "Direct Request" : "Demande directe",
+                location: le.city || 'Quebec, QC',
+                projectType: le.project_type,
+                value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
+                description: le.message || "",
+                createdAt: le.created_at,
+                isUnlocked: false
+              })),
+              ...permits.map(p => ({
+                id: p.id,
+                title: p.title,
+                source: l === 'en' ? "Municipal Data" : "Données municipales",
+                location: p.location || p.city || 'Quebec, QC',
+                projectType: p.project_type || 'general',
+                value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
+                description: p.description || "",
+                createdAt: p.scraped_at,
+                isUnlocked: false
+              }))
+            ].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())}
           />
         </div>
 

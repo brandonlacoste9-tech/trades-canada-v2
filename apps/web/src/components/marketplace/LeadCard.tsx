@@ -57,7 +57,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
       <div className="flex justify-between items-center mb-4">
         <span className={cn(
           "px-3 py-1 text-xs font-semibold rounded-full uppercase tracking-wider",
-          source === "Direct Request" 
+          source === "Direct Request" || source === "Demande directe"
             ? "bg-amber-100/10 text-amber-500" 
             : "bg-blue-100/10 text-blue-500"
         )}>

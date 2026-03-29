@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     template: "%s | Trades-Canada",
   },
   description:
-    "The all-in-one Website, SEO, and Automation platform built for Canadian Trades — from coast to coast. Bilingual EN/FR lead generation engine.",
-  keywords: ["contractor leads Canada", "SEO for contractors", "Canadian trades marketing", "lead generation contractors"],
+    "The all-in-one Lead Generation, Radar, and Marketplace platform built for Canadian Trades — from coast to coast. Bilingual EN/FR lead generation engine.",
+  keywords: ["contractor leads Canada", "homeowner leads", "Canadian trades marketplace", "lead generation contractors"],
   openGraph: {
     type: "website",
     locale: "en_CA",

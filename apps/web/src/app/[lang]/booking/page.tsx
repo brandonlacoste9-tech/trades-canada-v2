@@ -13,10 +13,10 @@ interface BookingPageProps {
 export async function generateMetadata({ params }: BookingPageProps): Promise<Metadata> {
   const { lang } = await params;
   return {
-    title: lang === "fr" ? "Réserver un appel | Trades-Canada" : "Book a Call | Trades-Canada",
+    title: lang === "fr" ? "Réserver une démo | Trades-Canada" : "Book a Demo | Trades-Canada",
     description: lang === "fr"
-      ? "Réservez un appel de stratégie gratuit avec l'équipe Trades-Canada."
-      : "Book a free strategy call with the Trades-Canada team.",
+      ? "Réservez une démo gratuite de la plateforme avec l'équipe Trades-Canada."
+      : "Book a free platform demo with the Trades-Canada team.",
   };
 }
 
@@ -31,16 +31,16 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
   const benefits = l === "en"
     ? [
-        "Custom website audit & competitive analysis",
-        "Bilingual SEO strategy for your trade & city",
-        "ROI projection based on your market",
-        "No commitment — just clarity",
+        "Marketplace walkthrough & lead quality audit",
+        "Bilingual lead targeting setup for your city",
+        "Lead Radar setup & data intelligence overview",
+        "No commitment — see the dashboard in action",
       ]
     : [
-        "Audit de site web personnalisé et analyse concurrentielle",
-        "Stratégie SEO bilingue pour votre métier et votre ville",
-        "Projection de ROI basée sur votre marché",
-        "Sans engagement — juste de la clarté",
+        "Visite du marché et audit de la qualité des leads",
+        "Configuration du ciblage des leads bilingues",
+        "Aperçu du Lead Radar et de l'intelligence des données",
+        "Sans engagement — voyez le tableau de bord en action",
       ];
 
   return (
@@ -56,15 +56,15 @@ export default async function BookingPage({ params }: BookingPageProps) {
               <div>
                 <div className="section-label w-fit mb-4">
                   <CalendarDays className="w-3.5 h-3.5" />
-                  {l === "en" ? "Free Strategy Call" : "Appel stratégique gratuit"}
+                  {l === "en" ? "Free Platform Demo" : "Démo gratuite"}
                 </div>
                 <h1 className="heading-lg mb-4">
-                  {l === "en" ? "Let's Build Your Growth Engine" : "Construisons votre moteur de croissance"}
+                  {l === "en" ? "Let's Scale Your Business" : "Faisons croître votre entreprise"}
                 </h1>
                 <p className="text-muted-foreground text-lg leading-relaxed mb-8">
                   {l === "en"
-                    ? "Book a 30-minute strategy call with our team. We'll audit your current digital presence and map out exactly how to dominate your local market."
-                    : "Réservez un appel stratégique de 30 minutes avec notre équipe. Nous auditerons votre présence numérique actuelle et cartographierons exactement comment dominer votre marché local."}
+                    ? "Book a free walkthrough of our lead generation platform. We'll show you how to find, track, and claim high-quality leads in your local market."
+                    : "Réservez une visite gratuite de notre plateforme de génération de leads. Nous vous montrerons comment trouver, suivre et réclamer des leads de haute qualité dans votre marché local."}
                 </p>
 
                 <div className="space-y-3 mb-8">
@@ -81,12 +81,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
                     <Clock className="w-5 h-5 text-amber-400 shrink-0" />
                     <div>
                       <p className="font-display font-semibold text-sm text-foreground">
-                        {l === "en" ? "30-Minute Strategy Session" : "Session stratégique de 30 minutes"}
+                        {l === "en" ? "Custom Onboarding Demo" : "Démo d'intégration personnalisée"}
                       </p>
                       <p className="text-muted-foreground text-xs">
                         {l === "en"
-                          ? "Via Google Meet or async follow-up"
-                          : "Via Google Meet ou suivi asynchrone"}
+                          ? "Via Google Meet or async video"
+                          : "Via Google Meet ou vidéo asynchrone"}
                       </p>
                     </div>
                   </div>
@@ -97,7 +97,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
                         {l === "en" ? "Prefer async contact?" : "Préférez un contact asynchrone?"}
                       </p>
                       <a
-                        href="mailto:hello@trades-canada.com?subject=Trades-Canada%20Strategy%20Request"
+                        href="mailto:hello@trades-canada.com?subject=Trades-Canada%20Demo%20Request"
                         className="text-amber-400 text-xs hover:text-amber-300 transition-colors"
                       >
                         hello@trades-canada.com

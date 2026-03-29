@@ -11,7 +11,10 @@ import {
   PipetteIcon as Pipe,
   TrendingUp,
   Award,
-  DollarSign
+  DollarSign,
+  Hammer,
+  Leaf,
+  HardHat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Lang, useTranslations } from "@/lib/i18n";
@@ -89,7 +92,7 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
 
-  const leadsToDisplay = initialLeads.length > 0 ? initialLeads : MOCK_LEADS;
+  const leadsToDisplay = initialLeads;
 
   const filteredLeads = leadsToDisplay.filter(l => 
     (filter === "all" || l.projectType?.toLowerCase() === filter.toLowerCase()) &&
@@ -217,6 +220,42 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
         >
           <Building2 size={16} />
           {t("marketplace.hvac")}
+        </button>
+        <button 
+          onClick={() => setFilter("roofing")}
+          className={cn(
+             "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border",
+            filter === "roofing" 
+              ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+              : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/50"
+          )}
+        >
+          <Hammer size={16} />
+          {t("marketplace.roofing")}
+        </button>
+        <button 
+          onClick={() => setFilter("landscaping")}
+          className={cn(
+             "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border",
+            filter === "landscaping" 
+              ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+              : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/50"
+          )}
+        >
+          <Leaf size={16} />
+          {t("marketplace.landscaping")}
+        </button>
+        <button 
+          onClick={() => setFilter("renovations")}
+          className={cn(
+             "flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border",
+            filter === "renovations" 
+              ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+              : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/50"
+          )}
+        >
+          <HardHat size={16} />
+          {t("marketplace.renovations")}
         </button>
       </div>
 
