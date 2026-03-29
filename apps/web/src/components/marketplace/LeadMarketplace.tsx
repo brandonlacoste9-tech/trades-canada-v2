@@ -209,7 +209,7 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredLeads.map(lead => (
-          <LeadCard key={lead.id} {...lead} />
+          <LeadCard key={lead.id} {...lead} lang={lang} />
         ))}
         
         {/* Empty State / Add Suggestion */}

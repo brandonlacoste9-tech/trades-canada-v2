@@ -104,6 +104,12 @@ const translations = {
     "dashboard.findWork": "Find Work",
     "dashboard.premiumOnly": "Premium Lead",
     "dashboard.unlockToView": "Unlock to view contact details",
+    "dashboard.verified": "Verified",
+    "dashboard.verifiedContact": "Verified Contact Info",
+    "dashboard.unlocked": "Unlocked",
+    "dashboard.locked": "LOCKED",
+    "dashboard.viewDetails": "View Details",
+    "dashboard.unlockLead": "Unlock Lead",
 
     // Marketplace
     "marketplace.title": "Lead Marketplace",
@@ -252,6 +258,12 @@ const translations = {
     "dashboard.findWork": "Trouver du travail",
     "dashboard.premiumOnly": "Lead Premium",
     "dashboard.unlockToView": "Débloquer pour voir les détails",
+    "dashboard.verified": "Vérifié",
+    "dashboard.verifiedContact": "Coordonnées vérifiées",
+    "dashboard.unlocked": "Débloqué",
+    "dashboard.locked": "VERROUILLÉ",
+    "dashboard.viewDetails": "Voir les détails",
+    "dashboard.unlockLead": "Débloquer le lead",
 
     // Marketplace
     "marketplace.title": "Marché des Leads",

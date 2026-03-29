@@ -11,6 +11,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Lang, useTranslations } from "@/lib/i18n";
 
 interface LeadCardProps {
   id: string;
@@ -25,6 +26,7 @@ interface LeadCardProps {
   status?: string;
   email?: string;
   phone?: string;
+  lang?: Lang;
 }
 
 const LeadCard: React.FC<LeadCardProps> = ({
@@ -39,8 +41,10 @@ const LeadCard: React.FC<LeadCardProps> = ({
   isUnlocked = false,
   status = "available",
   email,
-  phone
+  phone,
+  lang = "en"
 }) => {
+  const t = useTranslations(lang);
   const relativeTime = typeof createdAt === 'string' 
     ? formatDistanceToNow(new Date(createdAt), { addSuffix: true })
     : formatDistanceToNow(createdAt, { addSuffix: true });
@@ -88,7 +92,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
           )}
           <div className="flex items-center gap-2 text-sm text-primary/80 font-medium">
             <ShieldCheck size={16} />
-            <span>Verified</span>
+            <span>{t("dashboard.verified")}</span>
           </div>
         </div>
 
@@ -103,12 +107,12 @@ const LeadCard: React.FC<LeadCardProps> = ({
       <div className="mt-auto pt-6 border-t border-border/50">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground mb-1 uppercase tracking-tighter">Verified Contact Info</span>
+            <span className="text-xs text-muted-foreground mb-1 uppercase tracking-tighter">{t("dashboard.verifiedContact")}</span>
             {isUnlocked ? (
               <div className="flex flex-col gap-1 text-green-500 font-medium animate-in fade-in slide-in-from-top-1">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={16} />
-                  <span>Unlocked</span>
+                  <span>{t("dashboard.unlocked")}</span>
                 </div>
                 {email && <span className="text-xs text-foreground/80 font-mono">{email}</span>}
                 {phone && <span className="text-xs text-foreground/80 font-mono">{phone}</span>}
@@ -117,7 +121,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
               <div className="relative overflow-hidden w-24 h-6 rounded flex items-center">
                 <div className="absolute inset-0 bg-muted/50 blur-[4px] blur-mask" />
                 <span className="relative z-10 text-[10px] text-muted-foreground/50 tracking-widest pl-2 uppercase font-black">
-                  LOCKED
+                  {t("dashboard.locked")}
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-card/10 to-transparent animate-shimmer" />
               </div>
@@ -130,7 +134,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
               ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" 
               : "bg-primary text-white hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
           )}>
-            {isUnlocked ? "View Details" : "Unlock Lead"}
+            {isUnlocked ? t("dashboard.viewDetails") : t("dashboard.unlockLead")}
             <ChevronRight size={18} />
           </button>
         </div>
