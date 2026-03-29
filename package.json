@@ -11,6 +11,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
+    "gen:types": "pnpm --filter @trades-canada/web gen:types",
     "validate:ops": "node ./scripts/validate-ops.mjs",
     "check": "pnpm type-check && pnpm --filter @trades-canada/web lint",
     "check:web": "pnpm --filter @trades-canada/web type-check && pnpm --filter @trades-canada/web lint"
