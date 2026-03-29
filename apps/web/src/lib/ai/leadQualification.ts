@@ -109,7 +109,7 @@ Scoring guide: phone provided +15, city known +10, non-other trade +10, urgent t
     };
 
     // Handle both Responses API formats
-    let rawText: string | undefined =
+    const rawText: string | undefined =
       data.output_text ??
       data.output?.find((o) => o.type === "message")?.content?.find((c) => c.type === "output_text")?.text ??
       data.output?.find((o) => o.type === "message")?.text;

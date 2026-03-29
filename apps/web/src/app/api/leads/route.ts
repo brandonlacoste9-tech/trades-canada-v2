@@ -326,8 +326,9 @@ export async function POST(req: NextRequest) {
           );
 
           console.info(`${LOG_PREFIX} notifications_triggered`, { requestId, leadId: insertedLead.id });
-        } catch (notifErr: any) {
-          console.error(`${LOG_PREFIX} notifications_failed`, { requestId, message: notifErr.message });
+        } catch (notifErr: unknown) {
+          const msg = notifErr instanceof Error ? notifErr.message : String(notifErr);
+          console.error(`${LOG_PREFIX} notifications_failed`, { requestId, message: msg });
         }
       }
     } catch (sideEffectErr: unknown) {
