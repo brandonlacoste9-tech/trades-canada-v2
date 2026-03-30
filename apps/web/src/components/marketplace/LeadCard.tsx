@@ -176,12 +176,12 @@ const LeadCard: React.FC<LeadCardProps> = ({
           {/* Right: content */}
           <div className="flex-1 min-w-0 space-y-3">
             <div>
-              <h3 className="text-xl font-black leading-tight group-hover:text-primary transition-colors line-clamp-1">
+              <h3 className="text-xl font-black leading-tight group-hover:text-primary transition-colors line-clamp-2">
                 {title}
               </h3>
               <div className="flex items-center gap-1.5 mt-1 text-[11px] text-muted-foreground font-bold">
                 <MapPin size={12} className="text-primary/50 shrink-0" />
-                <span className="truncate">{location}</span>
+                <span className="break-words w-full">{location}</span>
               </div>
             </div>
 
@@ -229,7 +229,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   </span>
                 )}
                 {contact.email && (
-                  <span className="flex items-center gap-1 text-xs font-mono text-green-400 font-bold">
+                  <span className="flex items-center gap-1 text-xs font-mono text-green-400 font-bold break-all">
                     <Mail size={11} /> {contact.email}
                   </span>
                 )}

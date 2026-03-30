@@ -6,11 +6,7 @@ export type LeadStatus = "new" | "qualified" | "contacted" | "converted" | "lost
 export type PreferredLanguage = "en" | "fr";
 export type ProjectType = "hvac" | "roofing" | "landscaping" | "renovations" | "plumbing" | "electrical" | "general" | "other";
 
-// ── Supabase JS v2.99+ requires __InternalSupabase metadata ──────────────────
 export interface Database {
-  __InternalSupabase: {
-    PostgrestVersion: "12";
-  };
   public: {
     Tables: {
       appointments: {

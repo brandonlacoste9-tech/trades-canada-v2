@@ -8,6 +8,7 @@ import FeaturesSection from "@/components/marketing/FeaturesSection";
 import ROICalculator from "@/components/marketing/ROICalculator";
 import PricingSection from "@/components/marketing/PricingSection";
 import LeadForm from "@/components/marketing/LeadForm";
+import VideoSection from "@/components/marketing/VideoSection";
 
 interface HomePageProps {
   params: Promise<{ lang: string }>;
@@ -48,6 +49,7 @@ export default async function HomePage({ params }: HomePageProps) {
       <Navbar lang={l} />
       <main className="flex-1">
         <HeroSection lang={l} />
+        <VideoSection lang={l} />
         <FeaturesSection lang={l} />
         <ROICalculator lang={l} />
         <PricingSection lang={l} />

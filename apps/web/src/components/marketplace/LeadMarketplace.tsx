@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import LeadCard from "./LeadCard";
 import { 
   Plus, 
@@ -43,6 +43,27 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
   const t = useTranslations(lang);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [stats, setStats] = useState({
+    newToday: 0,
+    totalMarket: 0,
+    quickUnlock: "12s",
+    premiumLeads: 0
+  });
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const response = await fetch("/api/marketplace/stats");
+        const data = await response.json();
+        if (data && !data.error) {
+          setStats(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch marketplace stats", err);
+      }
+    }
+    fetchStats();
+  }, []);
 
   const leadsToDisplay = initialLeads;
 
@@ -91,7 +112,7 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
             <TrendingUp size={20} />
           </div>
           <div>
-            <div className="text-xl font-bold">164</div>
+            <div className="text-xl font-bold">{stats.newToday}</div>
             <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("marketplace.stats.newToday")}</div>
           </div>
         </div>
@@ -100,7 +121,7 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
             <DollarSign size={20} />
           </div>
           <div>
-            <div className="text-xl font-bold">$1.2M</div>
+            <div className="text-xl font-bold">${(stats.totalMarket / 1000000).toFixed(1)}M</div>
             <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("marketplace.stats.totalMarket")}</div>
           </div>
         </div>
@@ -109,7 +130,7 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
             <Zap size={20} />
           </div>
           <div>
-            <div className="text-xl font-bold">12s</div>
+            <div className="text-xl font-bold">{stats.quickUnlock}</div>
             <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("marketplace.stats.quickUnlock")}</div>
           </div>
         </div>
@@ -118,7 +139,7 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
             <Award size={20} />
           </div>
           <div>
-            <div className="text-xl font-bold">142</div>
+            <div className="text-xl font-bold">{stats.premiumLeads}</div>
             <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("marketplace.stats.premiumLeads")}</div>
           </div>
         </div>

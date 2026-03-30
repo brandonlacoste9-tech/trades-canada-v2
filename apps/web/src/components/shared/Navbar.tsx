@@ -28,7 +28,7 @@ export default function Navbar({ lang }: NavbarProps) {
     { href: `/${lang}#features`, label: t("nav.features", lang) },
     { href: `/${lang}/dashboard`, label: t("nav.leadMarketplace", lang) },
     { href: `/${lang}#pricing`, label: t("nav.pricing", lang) },
-    { href: `/${lang}/join`, label: t("nav.bookCall", lang) },
+    { href: `/${lang}#how-it-works`, label: t("nav.bookCall", lang) },
   ];
 
   return (

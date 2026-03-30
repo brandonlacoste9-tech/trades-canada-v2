@@ -23,20 +23,17 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
+    // 2. Admin Security Check — Use service role client to verify role
     const admin = getAdminSupabase();
-    
-    // Simple admin check: in a real app, you'd check a 'role' column in profiles
-    // For now, we'll allow the current user or check for a specific email if needed
-    // Assuming 'admin' role check here:
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
-      // Temporarily allowing for demo/dev if needed, but keeping security in mind
-      // In production: return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    if (profileError || profile?.role !== "admin") {
+      console.warn(`[admin] unauthorized access attempt by user ${user.id} (${user.email})`);
+      return NextResponse.json({ error: "Forbidden. Admin access required." }, { status: 403 });
     }
 
     // 1. Total Unlocks

@@ -8,7 +8,7 @@ const translations = {
     // Nav
     "nav.features": "Features",
     "nav.pricing": "Pricing",
-    "nav.bookCall": "Book a Demo",
+    "nav.bookCall": "See How It Works",
     "nav.login": "Contractor Login",
     "nav.getQuote": "Get a Quote",
     "nav.leadMarketplace": "Claim Leads",
@@ -176,7 +176,7 @@ const translations = {
     // Nav
     "nav.features": "Fonctionnalités",
     "nav.pricing": "Tarifs",
-    "nav.bookCall": "Démo gratuite",
+    "nav.bookCall": "Voir comment ça marche",
     "nav.login": "Connexion entrepreneur",
     "nav.getQuote": "Obtenir un devis",
     "nav.leadMarketplace": "Réclamer des leads",
