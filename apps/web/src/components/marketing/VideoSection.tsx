@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, X, Info } from "lucide-react";
+import { Play, X } from "lucide-react";
 import { type Lang } from "@/lib/i18n";
 
 interface VideoSectionProps {
@@ -87,14 +87,17 @@ export default function VideoSection({ lang }: VideoSectionProps) {
                 <X size={20} />
               </button>
 
-              {/* The Video embed - using a placeholder for now */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-white/40">
-                <Info size={64} className="mb-6 opacity-20" />
-                <h3 className="text-2xl font-bold text-white mb-2">Platform Walkthrough Loading...</h3>
-                <p className="max-w-md">Our high-conversion engine demonstration is currently being optimized for your region.</p>
-                
-                {/* Embed code would go here: <iframe src="..." /> */}
-              </div>
+              {/* The Video embed */}
+              <iframe 
+                width="100%" 
+                height="100%" 
+                src="https://www.youtube.com/embed/RveFovS8834?autoplay=1&mute=0" 
+                title="Trades-Canada Platform Walkthrough" 
+                frameBorder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowFullScreen
+                className="w-full h-full"
+              />
             </motion.div>
           </motion.div>
         )}
