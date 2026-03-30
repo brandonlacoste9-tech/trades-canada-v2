@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, X } from "lucide-react";
 import { type Lang } from "@/lib/i18n";
+import VideoMockup from "./VideoMockup";
 
 interface VideoSectionProps {
   lang: Lang;
@@ -87,17 +88,8 @@ export default function VideoSection({ lang }: VideoSectionProps) {
                 <X size={20} />
               </button>
 
-              {/* The Video embed */}
-              <iframe 
-                width="100%" 
-                height="100%" 
-                src="https://www.youtube.com/embed/ScMzIvxBSi4?autoplay=1&mute=0" 
-                title="Trades-Canada Platform Walkthrough" 
-                frameBorder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                allowFullScreen
-                className="w-full h-full"
-              />
+              {/* The Dynamic Animated Walkthrough */}
+              <VideoMockup />
             </motion.div>
           </motion.div>
         )}
