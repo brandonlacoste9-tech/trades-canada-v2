@@ -160,6 +160,17 @@ const translations = {
     "footer.tagline": "The automation engine for Canada's construction industry.",
     "footer.contact": "Contact",
     "footer.rights": "All rights reserved.",
+
+    // Marketplace Intel
+    "marketplace.intel.view": "Review Intel",
+    "marketplace.intel.title": "Lead Intelligence Report",
+    "marketplace.intel.summary": "Project Summary",
+    "marketplace.intel.location": "Service Area",
+    "marketplace.intel.scope": "Technical Scope",
+    "marketplace.intel.value": "Estimated Contract Value",
+    "marketplace.intel.velocity": "Market Competition",
+    "marketplace.intel.warning": "Business contact details are encrypted until you claim this lead.",
+    "marketplace.intel.cta": "Claim This Lead Now",
   },
   fr: {
     // Nav
@@ -317,6 +328,17 @@ const translations = {
     "footer.tagline": "Le moteur d'automatisation pour l'industrie de la construction au Canada.",
     "footer.contact": "Contact",
     "footer.rights": "Tous droits réservés.",
+
+    // Marketplace Intel
+    "marketplace.intel.view": "Lire le Rapport",
+    "marketplace.intel.title": "Rapport Intel du Lead",
+    "marketplace.intel.summary": "Sommaire du Projet",
+    "marketplace.intel.location": "Zone de Service",
+    "marketplace.intel.scope": "Détails Techniques",
+    "marketplace.intel.value": "Valeur Estimée",
+    "marketplace.intel.velocity": "Intensité du Marché",
+    "marketplace.intel.warning": "Les coordonnées sont encryptées jusqu'à ce que vous réclamiez ce lead.",
+    "marketplace.intel.cta": "Réclamer Maintenant",
   },
 } as const;
 

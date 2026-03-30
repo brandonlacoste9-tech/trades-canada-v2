@@ -137,6 +137,7 @@ export interface Database {
           display_name: string | null;
           company_name: string | null;
           phone: string | null;
+          role: string | null;
           services: string[] | null;
           city: string | null;
           subscription_tier: string | null;
@@ -151,6 +152,7 @@ export interface Database {
           display_name?: string | null;
           company_name?: string | null;
           phone?: string | null;
+          role?: string | null;
           services?: string[] | null;
           city?: string | null;
           subscription_tier?: string | null;
@@ -162,6 +164,59 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
+      };
+      subscription_plans: {
+        Row: {
+          id: string; // starter, engine, dominator
+          name: string;
+          lead_limit: number | null;
+          price_id: string | null;
+          is_active: boolean;
+          amount_monthly: number;
+          features: Json;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          name: string;
+          lead_limit?: number | null;
+          price_id?: string | null;
+          is_active?: boolean;
+          amount_monthly?: number;
+          features?: Json;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["subscription_plans"]["Insert"]>;
+        Relationships: [];
+      };
+      lead_unlocks: {
+        Row: {
+          id: string;
+          contractor_id: string;
+          lead_id: string;
+          unlocked_at: string;
+        };
+        Insert: {
+          id?: string;
+          contractor_id: string;
+          lead_id: string;
+          unlocked_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["lead_unlocks"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "lead_unlocks_contractor_id_fkey";
+            columns: ["contractor_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lead_unlocks_lead_id_fkey";
+            columns: ["lead_id"];
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       scraped_inventory: {
         Row: {
@@ -205,6 +260,8 @@ export interface Database {
       read_email_batch: { Args: { queue_name: string; batch_size: number; vt: number }; Returns: { msg_id: number; read_ct: number; message: Json }[] };
       delete_email: { Args: { queue_name: string; msg_id: number }; Returns: boolean };
       move_to_dlq: { Args: { queue_name: string; msg_id: number }; Returns: boolean };
+      get_unlock_trends: { Args: Record<string, never>; Returns: { date: string; count: number }[] };
+      get_unlock_city_stats: { Args: Record<string, never>; Returns: { city: string; count: number }[] };
     };
     Enums: {
       appointment_status: AppointmentStatus;

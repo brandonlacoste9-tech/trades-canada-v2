@@ -22,6 +22,8 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
     .eq("id", user.id)
     .single();
 
+  if (!profile) return notFound();
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>

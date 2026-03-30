@@ -1,197 +1,119 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
+import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/marketplace";
 
-// ─── Lazy clients ────────────────────────────────────────────────────────────
-let _stripe: Stripe | null = null;
-let _supabase: ReturnType<typeof createClient<Database>> | null = null;
 
-function getStripe(): Stripe {
-  if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: "2026-02-25.clover",
-    });
+
+
+
+function getAdminSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("Supabase service role credentials not configured.");
   }
-  return _stripe;
+  return createSupabaseAdminClient<Database>(url, key, { auth: { persistSession: false } });
 }
 
-function getSupabase(): ReturnType<typeof createClient<Database>> {
-  if (!_supabase) {
-    _supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-  }
-  return _supabase;
-}
+// Map Stripe Price IDs to internal subscription tiers
+const priceToTierMap: Record<string, string> = {
+  [process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || ""]: "starter",
+  [process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || ""]: "engine",
+  [process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE || ""]: "dominator",
+  // Fallbacks for the static IDs in create-checkout
+  "price_1TCyD0CzqBvMqSYFhDyf6YDp": "starter",
+  "price_1TCyDeCzqBvMqSYFl3sEMMw2": "engine",
+  "price_1TCyHwCzqBvMqSYFbv2HxlVh": "dominator",
+};
 
-// ─── Tier mapping ────────────────────────────────────────────────────────────
-type SubscriptionTier = "starter" | "pro" | "elite" | "free";
-
-function getTier(priceId: string): SubscriptionTier {
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER) return "starter";
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO) return "pro";
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE) return "elite";
-  return "starter";
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-async function getProfileByCustomerId(customerId: string) {
-  const db = getSupabase();
-  const { data } = await db
-    .from("profiles")
-    .select("id")
-    .eq("stripe_customer_id", customerId)
-    .single();
-  return data;
-}
-
-async function wasEventProcessed(eventId: string): Promise<boolean> {
-  const db = getSupabase();
-  const { data } = await db
-    .from("automated_logs")
-    .select("id")
-    .eq("channel", "stripe")
-    .eq("event_type", "stripe.webhook")
-    .contains("metadata", { stripe_event_id: eventId } as never)
-    .limit(1);
-
-  return Boolean(data?.length);
-}
-
-async function writeWebhookLog(
-  event: Stripe.Event,
-  status: "sent" | "failed",
-  subject: string,
-  recipient: string | null = null
-) {
-  const db = getSupabase();
-  await db.from("automated_logs").insert({
-    event_type: "stripe.webhook",
-    channel: "stripe",
-    status,
-    subject,
-    recipient,
-    metadata: {
-      stripe_event_id: event.id,
-      stripe_event_type: event.type,
-    },
-  });
-}
-
-async function updateSubscription(customerId: string, tier: SubscriptionTier) {
-  const db = getSupabase();
-  const profile = await getProfileByCustomerId(customerId);
-  if (!profile) {
-    console.error(`[stripe-webhook] No profile found for customer ${customerId}`);
-    return;
-  }
-
-  await db
-    .from("profiles")
-    .update({
-      subscription_tier: tier,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", profile.id);
-}
-
-// ─── Route handler ───────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2024-06-20",
+  } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
   const body = await req.text();
-  const sig = req.headers.get("stripe-signature");
+  const signature = req.headers.get("stripe-signature") as string;
 
-  if (!sig) {
-    return NextResponse.json({ error: "Missing stripe-signature header" }, { status: 400 });
-  }
-
-  const stripe = getStripe();
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
-    console.error("[stripe-webhook] Signature verification failed:", err);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`❌ Webhook signature verification failed: ${message}`);
+    return NextResponse.json({ error: `Webhook Error: ${message}` }, { status: 400 });
   }
 
-  console.log(`[stripe-webhook] Processing event: ${event.type}`);
+  const admin = getAdminSupabase();
 
   try {
-    if (await wasEventProcessed(event.id)) {
-      return NextResponse.json({ received: true, deduplicated: true });
-    }
-
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (session.mode !== "subscription") break;
-
+        const userId = session.metadata?.userId;
         const customerId = session.customer as string;
-        const subscriptionId = session.subscription as string;
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        const priceId = subscription.items.data[0]?.price.id ?? "";
-        const tier = getTier(priceId);
 
-        // Support both metadata conventions.
-        const userId = session.metadata?.userId ?? session.metadata?.user_id;
-        if (userId) {
-          const db = getSupabase();
-          await db.from("profiles").update({ stripe_customer_id: customerId }).eq("id", userId);
-        }
+        if (!userId) break;
 
-        await updateSubscription(customerId, tier);
-        await writeWebhookLog(event, "sent", "Subscription activated", session.customer_email);
+        // Fetch subscription to get the price ID
+        const subscription = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        );
+        const priceId = subscription.items.data[0].price.id;
+        const tier = priceToTierMap[priceId] || "starter";
+
+        console.log(`🔔 Checkout completed for user ${userId}, tier: ${tier}`);
+
+        await admin.from("profiles").update({
+          stripe_customer_id: customerId,
+          subscription_tier: tier,
+        }).eq("id", userId);
+        
         break;
       }
 
       case "customer.subscription.updated": {
-        const sub = event.data.object as Stripe.Subscription;
-        const customerId = sub.customer as string;
-        const priceId = sub.items.data[0]?.price.id ?? "";
-        const tier = getTier(priceId);
-        await updateSubscription(customerId, tier);
-        await writeWebhookLog(event, "sent", `Subscription updated (${sub.status})`);
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        const priceId = subscription.items.data[0].price.id;
+        const tier = priceToTierMap[priceId] || "starter";
+
+        console.log(`🔔 Subscription updated for customer ${customerId}, new tier: ${tier}`);
+
+        // Set status to starter if canceled but not yet expired
+        const newTier = subscription.status === "active" ? tier : "starter";
+
+        await admin.from("profiles").update({
+          subscription_tier: newTier,
+        }).eq("stripe_customer_id", customerId);
+
         break;
       }
 
       case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        const customerId = sub.customer as string;
-        await updateSubscription(customerId, "free");
-        await writeWebhookLog(event, "sent", "Subscription cancelled");
-        break;
-      }
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
 
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const customerId = invoice.customer as string;
-        const subscriptionId = (invoice as { subscription?: string }).subscription ?? null;
-        if (subscriptionId) {
-          const sub = await stripe.subscriptions.retrieve(subscriptionId);
-          const priceId = sub.items.data[0]?.price.id ?? "";
-          const tier = getTier(priceId);
-          await updateSubscription(customerId, tier);
-        }
-        await writeWebhookLog(event, "sent", "Invoice payment succeeded", invoice.customer_email);
-        break;
-      }
+        console.log(`🔔 Subscription deleted for customer ${customerId}`);
 
-      case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        await writeWebhookLog(event, "failed", "Invoice payment failed", invoice.customer_email);
+        await admin.from("profiles").update({
+          subscription_tier: "starter",
+        }).eq("stripe_customer_id", customerId);
+
         break;
       }
 
       default:
-        console.log(`[stripe-webhook] Unhandled event type: ${event.type}`);
-        await writeWebhookLog(event, "sent", `Unhandled event: ${event.type}`);
+        console.log(`🤷 Unhandled event type: ${event.type}`);
     }
-  } catch (err) {
-    console.error("[stripe-webhook] Error processing event:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
 
-  return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Internal error";
+    console.error(`❌ Webhook handler failed: ${message}`);
+    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
+  }
 }
+
+export const dynamic = "force-dynamic";

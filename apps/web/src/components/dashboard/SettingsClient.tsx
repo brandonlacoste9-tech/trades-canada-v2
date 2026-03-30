@@ -5,9 +5,8 @@ import { motion } from "framer-motion";
 import { User, MessageCircle, CreditCard, CheckCircle, Copy, RefreshCw } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
-import type { Database } from "@/types/database";
+import type { Profile } from "@/types/marketplace";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"] | null;
 
 interface SettingsClientProps {
   profile: Profile;
@@ -88,6 +87,38 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
   const disconnectTelegram = async () => {
     await supabase.from("profiles").update({ telegram_chat_id: null }).eq("id", userId);
     setTelegramConnected(false);
+  };
+
+  const [upgrading, setUpgrading] = useState(false);
+
+  const handleUpgrade = async (priceId: string) => {
+    setUpgrading(true);
+    try {
+      const response = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId, lang }),
+      });
+      const { url, error } = await response.json();
+      if (error) throw new Error(error);
+      window.location.href = url;
+    } catch (err) {
+      console.error("Upgrade error:", err);
+      // You might want to use a toast here
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    // This would ideally call a separate portal route, but for now we can redirect to a basic version or show info
+    // In a real app, create /api/stripe/create-portal
+    const response = await fetch("/api/stripe/create-portal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const { url } = await response.json();
+    if (url) window.location.href = url;
   };
 
   const tabs = [
@@ -310,16 +341,42 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
             )}
           </div>
 
-          <div className="flex gap-3">
-            {!profile?.subscription_tier && (
-              <a href={`/${lang}#pricing`} className="btn-amber text-sm">
-                {t("settings.upgrade", lang)}
-              </a>
-            )}
-            {profile?.stripe_customer_id && (
-              <button className="btn-outline-amber text-sm">
-                {t("settings.manage", lang)}
-              </button>
+          <div className="flex flex-col gap-4">
+            {!profile?.subscription_tier ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="glass-card-hover cyber-border p-4 space-y-3">
+                  <h4 className="font-display font-bold text-sm">Lead Engine</h4>
+                  <p className="text-muted-foreground text-xs">Unlock unlimited marketplace leads and automation.</p>
+                  <button 
+                    onClick={() => handleUpgrade("price_1TCyDeCzqBvMqSYFl3sEMMw2")}
+                    disabled={upgrading}
+                    className="btn-amber w-full text-xs"
+                  >
+                    {upgrading ? "..." : t("settings.upgrade", lang)}
+                  </button>
+                </div>
+                <div className="glass-card-hover border border-white/[0.08] p-4 space-y-3">
+                  <h4 className="font-display font-bold text-sm">Lead Dominator</h4>
+                  <p className="text-muted-foreground text-xs">Priority access and AI-powered lead scoring.</p>
+                  <button 
+                    onClick={() => handleUpgrade("price_1TCyHwCzqBvMqSYFbv2HxlVh")}
+                    disabled={upgrading}
+                    className="btn-outline-amber w-full text-xs"
+                  >
+                    {upgrading ? "..." : t("settings.upgrade", lang)}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button 
+                  onClick={handleManageSubscription}
+                  className="btn-outline-amber text-sm"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  {t("settings.manage", lang)}
+                </button>
+              </div>
             )}
           </div>
         </motion.div>
