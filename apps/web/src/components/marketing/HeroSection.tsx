@@ -91,7 +91,7 @@ export default function HeroSection({ lang }: HeroSectionProps) {
               {t("hero.cta1", lang)}
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <Link href={`/${lang}#features`} className="btn-outline-amber text-base px-8 py-4 w-full sm:w-auto">
+            <Link href={`/${lang}#how-it-works`} className="btn-outline-amber text-base px-8 py-4 w-full sm:w-auto">
               {t("hero.cta2", lang)}
               <ChevronRight className="w-5 h-5" />
             </Link>

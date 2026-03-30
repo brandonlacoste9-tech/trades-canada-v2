@@ -41,6 +41,8 @@ const translations = {
     "features.radar.desc": "Real-time lead tracking, scoring, and market intelligence across all provinces.",
     "features.intel.title": "Market Intelligence",
     "features.intel.desc": "Scraped permit data from Toronto, Vancouver, Calgary, Montreal & more.",
+    "features.telegram.title": "Instant Telegram Alerts",
+    "features.telegram.desc": "Get notified of new leads the second they hit the market. Close deals before your competition even sees them.",
 
     // ROI
     "roi.badge": "ROI Calculator",
@@ -209,6 +211,8 @@ const translations = {
     "features.radar.desc": "Suivi des leads en temps réel, scoring et intelligence de marché dans toutes les provinces.",
     "features.intel.title": "Intelligence de marché",
     "features.intel.desc": "Données de permis extraites de Toronto, Vancouver, Calgary, Montréal et plus.",
+    "features.telegram.title": "Alertes Telegram instantanées",
+    "features.telegram.desc": "Soyez notifié des nouveaux leads à la seconde où ils arrivent sur le marché. Concluez des contrats avant même que vos concurrents ne les voient.",
 
     // ROI
     "roi.badge": "Calculateur de ROI",
