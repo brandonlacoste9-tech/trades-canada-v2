@@ -33,20 +33,35 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
   const meta = useMetaEvents();
 
   const maybeStartCheckout = async () => {
-    if (!planId) return false;
-    const res = await fetch("/api/stripe/create-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ priceId: planId, lang }),
-    });
-    if (!res.ok) {
-      const payload = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(payload.error ?? "Could not start checkout.");
+    let activePriceId = planId;
+    if (!activePriceId && typeof window !== "undefined") {
+      activePriceId = localStorage.getItem("pending_price_id") || undefined;
     }
-    const payload = (await res.json()) as { url?: string };
-    if (!payload.url) throw new Error("Missing checkout URL.");
-    window.location.href = payload.url;
-    return true;
+    
+    if (!activePriceId) return false;
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId: activePriceId, lang }),
+      });
+      if (!res.ok) throw new Error("Could not start checkout.");
+      const payload = (await res.json()) as { url?: string };
+      if (!payload.url) throw new Error("Missing checkout URL.");
+      
+      // Clear intent before redirecting
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("pending_price_id");
+      }
+      
+      window.location.href = payload.url;
+      return true;
+    } catch (err) {
+      console.error("Checkout failed:", err);
+      return false;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,6 +100,12 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
         if (error) throw error;
         // Fire contractor acquisition event
         await meta.trackSignupStarted();
+        
+        // Record intent for post-verification logic
+        if (planId && typeof window !== "undefined") {
+          localStorage.setItem("pending_price_id", planId);
+        }
+
         setMessage({ type: "success", text: t("auth.verifyEmail", lang) });
       } else if (mode === "reset") {
         const { error } = await supabase.auth.resetPasswordForEmail(form.email, {

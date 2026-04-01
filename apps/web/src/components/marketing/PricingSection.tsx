@@ -146,6 +146,11 @@ export default function PricingSection({ lang }: PricingSectionProps) {
 
               <Link
                 href={`/${lang}/auth?plan=${plan.priceId}`}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("pending_price_id", plan.priceId);
+                  }
+                }}
                 className={plan.popular ? "btn-amber justify-center" : "btn-outline-amber justify-center"}
               >
                 {t(plan.cta, lang)}
