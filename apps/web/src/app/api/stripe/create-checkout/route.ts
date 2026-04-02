@@ -4,12 +4,6 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
-const STATIC_ALLOWED_PRICE_IDS = new Set([
-  "price_1TCyD0CzqBvMqSYFhDyf6YDp",
-  "price_1TCyDeCzqBvMqSYFl3sEMMw2",
-  "price_1TCyHwCzqBvMqSYFbv2HxlVh",
-]);
-
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
@@ -28,13 +22,13 @@ function getAdminSupabase() {
 }
 
 function getAllowedPriceIds(): Set<string> {
-  const dynamic = [
+  const ids = [
     process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER,
     process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
     process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE,
   ].filter((v): v is string => Boolean(v));
 
-  return new Set([...STATIC_ALLOWED_PRICE_IDS, ...dynamic]);
+  return new Set(ids);
 }
 
 export async function POST(req: NextRequest) {

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { ProjectType } from "@/types/database";
 import { qualifyLead } from "@/lib/ai/leadQualification";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 // ─── /api/leads — Public lead submission endpoint ─────────────────────────────
 // Uses the Supabase SERVICE ROLE key so the insert always succeeds regardless
@@ -26,7 +27,7 @@ const LEGACY_MAP: Record<string, string> = {
   new_construction: "general",
 };
 
-const RATE_LIMIT_WINDOW_SEC = 10 * 60; // 10 minutes
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 8;
 const MIN_FORM_FILL_MS = 1200;
 const LOG_PREFIX = "[api/leads]";
@@ -104,38 +105,6 @@ function getClientIp(req: NextRequest): string {
   return req.headers.get("x-real-ip") ?? "unknown";
 }
 
-/**
- * DB-backed rate limiter — survives serverless cold starts.
- * Uses the rate_limits table (service_role key, RLS blocks client access).
- * Returns true if the request should be blocked.
- */
-async function shouldRateLimit(ip: string): Promise<boolean> {
-  try {
-    const supabase = getServiceClient();
-    const nowIso = new Date().toISOString();
-    const resetAt = new Date(Date.now() + RATE_LIMIT_WINDOW_SEC * 1000).toISOString();
-
-    // Upsert: if row missing or window expired, reset counter; otherwise increment.
-    const { data, error } = await supabase.rpc("upsert_rate_limit", {
-      p_ip: ip,
-      p_max: RATE_LIMIT_MAX_REQUESTS,
-      p_window_sec: RATE_LIMIT_WINDOW_SEC,
-      p_now: nowIso,
-      p_reset_at: resetAt,
-    }) as { data: { blocked: boolean } | null; error: unknown };
-
-    if (error) {
-      // If the RPC doesn't exist yet (fresh deploy before migration), fall through
-      console.warn(`${LOG_PREFIX} rate_limit_rpc_error — skipping limit:`, error);
-      return false;
-    }
-
-    return data?.blocked ?? false;
-  } catch {
-    // Non-fatal: if DB is unavailable, allow the request
-    return false;
-  }
-}
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
@@ -169,7 +138,8 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = getClientIp(req);
-  if (await shouldRateLimit(ip)) {
+  const { limited } = await checkRateLimit(`lead:${ip}`, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_REQUESTS);
+  if (limited) {
     console.warn(`${LOG_PREFIX} rate_limited`, { requestId, ip });
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
