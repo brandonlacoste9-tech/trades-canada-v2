@@ -19,7 +19,6 @@ export async function checkRateLimit(
   maxRequests: number
 ): Promise<{ limited: boolean; remaining: number }> {
   const supabase = getServiceClient();
-  const windowStart = new Date(Date.now() - windowMs).toISOString();
 
   // Clean expired entry for this key, then upsert
   const { data, error } = await supabase.rpc("check_rate_limit", {

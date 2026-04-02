@@ -24,7 +24,7 @@ export default async function AdminMarketplacePage({ params }: AdminPageProps) {
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") notFound();
+  if ((profile as { role?: string } | null)?.role !== "admin") notFound();
 
   return (
     <div className="min-h-screen bg-black text-foreground selection:bg-amber-500/30">
