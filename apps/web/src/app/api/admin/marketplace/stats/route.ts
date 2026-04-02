@@ -67,8 +67,9 @@ export async function GET() {
       .select("subscription_tier");
 
     const revenue = (tierCounts || []).reduce((acc, p) => {
-      if (p.subscription_tier === "engine") return acc + 299;
-      if (p.subscription_tier === "dominator") return acc + 999;
+      if (p.subscription_tier === "starter") return acc + 149;
+      if (p.subscription_tier === "engine") return acc + 349;
+      if (p.subscription_tier === "dominator") return acc + 599;
       return acc;
     }, 0);
 

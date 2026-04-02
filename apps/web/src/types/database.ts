@@ -139,6 +139,8 @@ export interface Database {
           subscription_tier: string | null;
           stripe_customer_id: string | null;
           telegram_chat_id: string | null;
+          telegram_verification_code: string | null;
+          telegram_bot_token: string | null;
           preferred_language: PreferredLanguage;
           created_at: string;
           updated_at: string;
@@ -154,6 +156,8 @@ export interface Database {
           subscription_tier?: string | null;
           stripe_customer_id?: string | null;
           telegram_chat_id?: string | null;
+          telegram_verification_code?: string | null;
+          telegram_bot_token?: string | null;
           preferred_language?: PreferredLanguage;
           created_at?: string;
           updated_at?: string;

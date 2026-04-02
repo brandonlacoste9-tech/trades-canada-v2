@@ -3,10 +3,6 @@ import Stripe from "stripe";
 import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/marketplace";
 
-
-
-
-
 function getAdminSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,15 +13,24 @@ function getAdminSupabase() {
 }
 
 // Map Stripe Price IDs to internal subscription tiers
-const priceToTierMap: Record<string, string> = {
-  [process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || ""]: "starter",
-  [process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || ""]: "engine",
-  [process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE || ""]: "dominator",
-  // Fallbacks for the static IDs in create-checkout
-  "price_1TCyD0CzqBvMqSYFhDyf6YDp": "starter",
-  "price_1TCyDeCzqBvMqSYFl3sEMMw2": "engine",
-  "price_1TCyHwCzqBvMqSYFbv2HxlVh": "dominator",
-};
+function buildPriceToTierMap(): Record<string, string> {
+  const map: Record<string, string> = {
+    // Static fallbacks for the hardcoded Price IDs
+    "price_1TCyD0CzqBvMqSYFhDyf6YDp": "starter",
+    "price_1TCyDeCzqBvMqSYFl3sEMMw2": "engine",
+    "price_1TCyHwCzqBvMqSYFbv2HxlVh": "dominator",
+  };
+  // Add env-configured Price IDs (if set)
+  const envStarter = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER;
+  const envPro = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
+  const envElite = process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE;
+  if (envStarter) map[envStarter] = "starter";
+  if (envPro) map[envPro] = "engine";
+  if (envElite) map[envElite] = "dominator";
+  return map;
+}
+
+const priceToTierMap = buildPriceToTierMap();
 
 export async function POST(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {

@@ -24,25 +24,25 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
     phone: profile?.phone ?? "",
     city: profile?.city ?? "",
     services: profile?.services ?? [],
+    telegramBotToken: profile?.telegram_bot_token ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [telegramCode, setTelegramCode] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
-  const [telegramConnected, setTelegramConnected] = useState(!!profile?.telegram_chat_id);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createClient() as any;
+  const [telegramConnected, setTelegramConnected] = useState(!!profile?.telegram_chat_id || !!profile?.telegram_bot_token);
+  const supabase = createClient();
 
   const handleSave = async () => {
     setSaving(true);
-    await supabase.from("profiles").upsert({
+    await (supabase.from("profiles") as any).upsert({
       id: userId,
       display_name: form.displayName,
       company_name: form.companyName,
       phone: form.phone,
       city: form.city,
       services: form.services,
+      telegram_bot_token: form.telegramBotToken,
       updated_at: new Date().toISOString(),
     });
     setSaving(false);
@@ -64,12 +64,15 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
     setTelegramCode(code);
     setPolling(true);
 
-    // Store code in profile metadata for bot verification
-    await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", userId);
+    // Store code in profile table for bot verification
+    await (supabase.from("profiles") as any).update({ 
+      telegram_verification_code: code,
+      updated_at: new Date().toISOString() 
+    }).eq("id", userId);
 
     // Poll for connection
     const interval = setInterval(async () => {
-      const { data } = await supabase.from("profiles").select("telegram_chat_id").eq("id", userId).single();
+      const { data } = await (supabase.from("profiles") as any).select("telegram_chat_id").eq("id", userId).single();
       if (data?.telegram_chat_id) {
         setTelegramConnected(true);
         setPolling(false);
@@ -85,8 +88,14 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
   };
 
   const disconnectTelegram = async () => {
-    await supabase.from("profiles").update({ telegram_chat_id: null }).eq("id", userId);
+    await (supabase.from("profiles") as any)
+      .update({ 
+        telegram_chat_id: null,
+        telegram_bot_token: null 
+      })
+      .eq("id", userId);
     setTelegramConnected(false);
+    setForm(f => ({ ...f, telegramBotToken: "" }));
   };
 
   const [upgrading, setUpgrading] = useState(false);
@@ -262,54 +271,113 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
                   </p>
                 </div>
               </div>
-              <button onClick={disconnectTelegram} className="btn-outline-amber text-sm">
+              
+              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.08] space-y-3">
+                <p className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-widest">
+                  Configuration
+                </p>
+                <div>
+                  <label className="block text-[10px] text-muted-foreground mb-1 uppercase">Bot Token (@BotFather)</label>
+                  <input
+                    type="password"
+                    value={form.telegramBotToken}
+                    onChange={(e) => setForm({ ...form, telegramBotToken: e.target.value })}
+                    placeholder="7123456789:AAE..."
+                    className="input-amber py-2 text-xs font-mono"
+                  />
+                </div>
+                <button 
+                  onClick={handleSave} 
+                  disabled={saving}
+                  className="text-xs text-amber-400 hover:text-amber-300 font-bold transition-colors"
+                >
+                  {saving ? "..." : "Save Bot Configuration"}
+                </button>
+              </div>
+
+              <button onClick={disconnectTelegram} className="btn-outline-amber text-sm w-full">
                 {t("settings.telegram.disconnect", lang)}
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <p className="text-muted-foreground text-sm">
-                {lang === "en"
-                  ? "Connect Telegram to receive instant lead notifications directly in your chat."
-                  : "Connectez Telegram pour recevoir des notifications de leads instantanées directement dans votre chat."}
-              </p>
-
-              {telegramCode ? (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">{t("settings.telegram.instructions", lang)}</p>
-                  <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.04] border border-white/[0.08]">
-                    <code className="font-mono text-2xl font-bold text-amber-400 tracking-[0.3em] flex-1">
-                      {telegramCode}
-                    </code>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(telegramCode)}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-amber-400 transition-colors"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <a
-                    href="https://t.me/TradesCanadaBot"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-amber inline-flex"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    {lang === "en" ? "Open Telegram Bot" : "Ouvrir le bot Telegram"}
-                  </a>
-                  {polling && (
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      {t("settings.telegram.waiting", lang)}
+            <div className="space-y-6">
+              {/* Setup Guide */}
+              <div className="glass-card bg-amber-500/[0.03] p-4 rounded-xl border border-amber-500/10 space-y-4">
+                <h4 className="font-display font-bold text-amber-400 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  {t("settings.telegram.setup.title", lang)}
+                </h4>
+                <div className="grid gap-3">
+                  {[1, 2, 3, 4].map((step) => (
+                    <div key={step} className="flex gap-3 text-xs">
+                      <div className="flex-1 text-muted-foreground">
+                        {t(`settings.telegram.setup.step${step}` as Parameters<typeof t>[0], lang)}
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              ) : (
-                <button onClick={generateTelegramCode} className="btn-amber">
-                  <MessageCircle className="w-4 h-4" />
-                  {t("settings.telegram.connect", lang)}
-                </button>
-              )}
+                
+                <div className="pt-2">
+                  <input
+                    type="text"
+                    value={form.telegramBotToken}
+                    onChange={(e) => setForm({ ...form, telegramBotToken: e.target.value })}
+                    placeholder={t("settings.telegram.tokenPlaceholder", lang)}
+                    className="input-amber py-3 mb-2"
+                  />
+                  <button onClick={handleSave} disabled={saving} className="btn-amber w-full">
+                    {saving ? "Saving..." : "Connect My Custom Bot"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative flex items-center gap-4 py-2">
+                <div className="flex-1 h-px bg-white/[0.08]" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">{lang === 'en' ? 'OR' : 'OU'}</span>
+                <div className="flex-1 h-px bg-white/[0.08]" />
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  {t("settings.telegram.useCentral", lang)}
+                </p>
+
+                {telegramCode ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                      <code className="font-mono text-2xl font-bold text-amber-400 tracking-[0.3em] flex-1">
+                        {telegramCode}
+                      </code>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(telegramCode)}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-amber-400 transition-colors"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <a
+                      href="https://t.me/TradesCanadaBot"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-amber inline-flex w-full justify-center"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      {lang === "en" ? "Open Trades-Canada Bot" : "Ouvrir le bot Trades-Canada"}
+                    </a>
+                    {polling && (
+                      <div className="flex items-center gap-2 text-muted-foreground text-sm justify-center">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        {t("settings.telegram.waiting", lang)}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button onClick={generateTelegramCode} className="btn-outline-amber w-full">
+                    <RefreshCw className="w-4 h-4" />
+                    {lang === 'en' ? 'Get Connection Code' : 'Obtenir le code de connexion'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </motion.div>
@@ -326,27 +394,59 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
             <p className="text-xs font-display font-semibold text-muted-foreground mb-2">
               {t("settings.plan", lang)}
             </p>
-            {profile?.subscription_tier ? (
+            {profile?.subscription_tier && profile.subscription_tier !== "starter" ? (
               <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
                 <CreditCard className="w-5 h-5 text-amber-400 shrink-0" />
                 <div>
-                  <p className="font-display font-bold text-sm text-amber-400">{profile.subscription_tier}</p>
+                  <p className="font-display font-bold text-sm text-amber-400 capitalize">{profile.subscription_tier === "engine" ? "Lead Engine" : profile.subscription_tier === "dominator" ? "Market Dominator" : profile.subscription_tier}</p>
                   <p className="text-muted-foreground text-xs">
                     {lang === "en" ? "Active subscription" : "Abonnement actif"}
                   </p>
                 </div>
               </div>
             ) : (
-              <p className="text-muted-foreground text-sm">{t("settings.noPlan", lang)}</p>
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                <CreditCard className="w-5 h-5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="font-display font-bold text-sm text-foreground">
+                    {lang === "en" ? "Free Tier" : "Forfait gratuit"}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {lang === "en" ? "Upgrade to unlock full features" : "Passez à un forfait supérieur pour débloquer toutes les fonctionnalités"}
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 
           <div className="flex flex-col gap-4">
-            {!profile?.subscription_tier ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="glass-card-hover cyber-border p-4 space-y-3">
+            {(!profile?.subscription_tier || profile.subscription_tier === "starter") ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="glass-card-hover cyber-border p-4 space-y-3 flex flex-col">
+                  <h4 className="font-display font-bold text-sm">Lead Starter</h4>
+                  <p className="text-amber-400 font-display font-bold text-lg">$149<span className="text-muted-foreground text-xs font-normal">{lang === "en" ? "/mo" : "/mois"}</span></p>
+                  <p className="text-muted-foreground text-xs flex-1">
+                    {lang === "en" ? "Marketplace access, bilingual alerts, and Telegram notifications." : "Accès au marché, alertes bilingues et notifications Telegram."}
+                  </p>
+                  <button 
+                    onClick={() => handleUpgrade("price_1TCyD0CzqBvMqSYFhDyf6YDp")}
+                    disabled={upgrading}
+                    className="btn-outline-amber w-full text-xs"
+                  >
+                    {upgrading ? "..." : t("settings.upgrade", lang)}
+                  </button>
+                </div>
+                <div className="glass-card-hover border border-amber-500/30 bg-amber-500/[0.04] p-4 space-y-3 relative flex flex-col">
+                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-display font-bold">
+                      {lang === "en" ? "Popular" : "Populaire"}
+                    </span>
+                  </div>
                   <h4 className="font-display font-bold text-sm">Lead Engine</h4>
-                  <p className="text-muted-foreground text-xs">Unlock unlimited marketplace leads and automation.</p>
+                  <p className="text-amber-400 font-display font-bold text-lg">$349<span className="text-muted-foreground text-xs font-normal">{lang === "en" ? "/mo" : "/mois"}</span></p>
+                  <p className="text-muted-foreground text-xs flex-1">
+                    {lang === "en" ? "Unlimited claims, lead automation, and building permit intelligence." : "Réclamations illimitées, automatisation et intelligence des permis."}
+                  </p>
                   <button 
                     onClick={() => handleUpgrade("price_1TCyDeCzqBvMqSYFl3sEMMw2")}
                     disabled={upgrading}
@@ -355,9 +455,12 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
                     {upgrading ? "..." : t("settings.upgrade", lang)}
                   </button>
                 </div>
-                <div className="glass-card-hover border border-white/[0.08] p-4 space-y-3">
-                  <h4 className="font-display font-bold text-sm">Lead Dominator</h4>
-                  <p className="text-muted-foreground text-xs">Priority access and AI-powered lead scoring.</p>
+                <div className="glass-card-hover border border-white/[0.08] p-4 space-y-3 flex flex-col">
+                  <h4 className="font-display font-bold text-sm">Market Dominator</h4>
+                  <p className="text-amber-400 font-display font-bold text-lg">$599<span className="text-muted-foreground text-xs font-normal">{lang === "en" ? "/mo" : "/mois"}</span></p>
+                  <p className="text-muted-foreground text-xs flex-1">
+                    {lang === "en" ? "Priority access, AI lead scoring, and multi-channel automation." : "Accès prioritaire, scoring IA et automatisation multicanal."}
+                  </p>
                   <button 
                     onClick={() => handleUpgrade("price_1TCyHwCzqBvMqSYFbv2HxlVh")}
                     disabled={upgrading}

@@ -62,7 +62,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Redirect authenticated users away from auth page ──
-  if (pathname === `/${lang}/auth` && user) {
+  // Allow through if they have a ?plan= param (pricing → checkout flow)
+  const hasPlanParam = request.nextUrl.searchParams.has("plan");
+  if (pathname === `/${lang}/auth` && user && !hasPlanParam) {
     return NextResponse.redirect(new URL(`/${lang}/dashboard`, request.url));
   }
 

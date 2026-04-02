@@ -7,8 +7,9 @@ const supabase = createClient(
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN")!;
 
-async function sendTelegramMessage(chatId: string, text: string): Promise<boolean> {
-  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+async function sendTelegramMessage(chatId: string, text: string, customToken?: string): Promise<boolean> {
+  const token = customToken || TELEGRAM_BOT_TOKEN;
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -19,6 +20,9 @@ async function sendTelegramMessage(chatId: string, text: string): Promise<boolea
     }),
   });
   const data = await res.json();
+  if (!data.ok) {
+    console.warn(`Telegram API error (${token.substring(0, 5)}...):`, data.description);
+  }
   return data.ok;
 }
 
@@ -40,7 +44,7 @@ Deno.serve(async (req) => {
     // Match by city and services
     const { data: contractors } = await supabase
       .from("profiles")
-      .select("id, telegram_chat_id, display_name, services, subscription_tier")
+      .select("id, telegram_chat_id, telegram_bot_token, display_name, services, subscription_tier")
       .not("telegram_chat_id", "is", null)
       .not("subscription_tier", "is", null);
 
@@ -80,7 +84,11 @@ Deno.serve(async (req) => {
           `⭐ <b>Score:</b> ${lead.score ?? "N/A"}\n\n` +
           `📊 <i>Log in to your dashboard to claim this lead.</i>`;
 
-      const success = await sendTelegramMessage(contractor.telegram_chat_id, message);
+      const success = await sendTelegramMessage(
+        contractor.telegram_chat_id,
+        message,
+        contractor.telegram_bot_token ?? undefined
+      );
 
       if (success) {
         sent++;
