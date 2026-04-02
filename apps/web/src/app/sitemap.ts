@@ -25,8 +25,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 1.0,
   }));
 
-  // Static pages per language
-  const staticPages = ["booking", "auth"];
+  // Static pages per language — only include routes that actually exist
+  const staticPages = ["join"];
   const staticEntries: MetadataRoute.Sitemap = LANGS.flatMap((lang) =>
     staticPages.map((page) => ({
       url: `${BASE_URL}/${lang}/${page}`,

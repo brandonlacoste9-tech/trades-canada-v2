@@ -103,6 +103,28 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
   };
 
   const [upgrading, setUpgrading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+
+  const handleSyncSubscription = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/stripe/sync-subscription");
+      const data = await res.json() as { tier?: string; synced?: boolean; error?: string };
+      if (data.error) throw new Error(data.error);
+      if (data.synced) {
+        setSyncResult(lang === "fr" ? `Plan mis à jour : ${data.tier}` : `Plan updated to: ${data.tier}`);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        setSyncResult(lang === "fr" ? `Plan actuel : ${data.tier}` : `Plan is already: ${data.tier}`);
+      }
+    } catch (err) {
+      setSyncResult(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleUpgrade = async (priceId: string) => {
     setUpgrading(true);
@@ -423,8 +445,25 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
             )}
           </div>
 
+          {syncResult && (
+            <p className={`text-xs font-display px-3 py-2 rounded-lg border ${syncResult.includes("updated") || syncResult.includes("mis à jour") ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : "bg-white/[0.04] border-white/[0.08] text-muted-foreground"}`}>
+              {syncResult}
+            </p>
+          )}
+
           <div className="flex flex-col gap-4">
             {(!profile?.subscription_tier || profile.subscription_tier === "starter") ? (
+              <>
+              <button
+                onClick={handleSyncSubscription}
+                disabled={syncing}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-400 transition-colors font-display"
+              >
+                {syncing
+                  ? <span className="w-3 h-3 border border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                  : <RefreshCw className="w-3 h-3" />}
+                {lang === "fr" ? "Déjà abonné? Synchroniser" : "Already subscribed? Sync status"}
+              </button>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="glass-card-hover cyber-border p-4 space-y-3 flex flex-col">
                   <h4 className="font-display font-bold text-sm">Lead Starter</h4>
@@ -474,14 +513,26 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
                   </button>
                 </div>
               </div>
+              </>
             ) : (
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button 
                   onClick={handleManageSubscription}
                   className="btn-outline-amber text-sm"
                 >
                   <RefreshCw className="w-3 h-3" />
                   {t("settings.manage", lang)}
+                </button>
+                <button
+                  onClick={handleSyncSubscription}
+                  disabled={syncing}
+                  className="btn-outline-amber text-sm opacity-70 hover:opacity-100"
+                >
+                  {syncing
+                    ? <span className="w-3 h-3 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                    : <RefreshCw className="w-3 h-3" />
+                  }
+                  {lang === "fr" ? "Sync. abonnement" : "Sync subscription"}
                 </button>
               </div>
             )}

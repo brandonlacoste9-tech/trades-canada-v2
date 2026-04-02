@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { isValidLang, t, type Lang } from "@/lib/i18n";
 import { notFound, redirect } from "next/navigation";
 import type { Database } from "@/types/database";
 
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import LeadMarketplace from "@/components/marketplace/LeadMarketplace";
+import SubscriptionSyncBanner from "@/components/dashboard/SubscriptionSyncBanner";
 import { evaluateLeadEligibility } from "@/lib/leadEligibility";
 
 interface DashboardPageProps {
   params: Promise<{ lang: string }>;
+  searchParams: Promise<{ success?: string; canceled?: string }>;
 }
 
 export const metadata: Metadata = {
@@ -17,10 +20,67 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function DashboardPage({ params }: DashboardPageProps) {
+export default async function DashboardPage({ params, searchParams }: DashboardPageProps) {
   const { lang } = await params;
+  const { success } = await searchParams;
   if (!isValidLang(lang)) notFound();
   const l = lang as Lang;
+
+  // When redirected back from Stripe checkout, proactively sync the
+  // subscription tier from Stripe before rendering — fixes the race
+  // condition where the webhook hasn't fired yet.
+  const justPaid = success === "1";
+  if (justPaid) {
+    const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (adminUrl && adminKey && stripeKey) {
+      try {
+        const supabaseCheck = await createClient();
+        const { data: { user: checkUser } } = await supabaseCheck.auth.getUser();
+        if (checkUser) {
+          const admin = createAdminClient<Database>(adminUrl, adminKey, { auth: { persistSession: false } });
+          const { data: prof } = await admin
+            .from("profiles")
+            .select("stripe_customer_id, subscription_tier")
+            .eq("id", checkUser.id)
+            .single();
+
+          if (prof?.stripe_customer_id) {
+            const Stripe = (await import("stripe")).default;
+            const stripe = new Stripe(stripeKey, { apiVersion: "2026-02-25.clover" });
+            const priceMap: Record<string, string> = {
+              "price_1TCyD0CzqBvMqSYFhDyf6YDp": "starter",
+              "price_1TCyDeCzqBvMqSYFl3sEMMw2": "engine",
+              "price_1TCyHwCzqBvMqSYFbv2HxlVh": "dominator",
+            };
+            const envStarter = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER;
+            const envPro = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
+            const envElite = process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE;
+            if (envStarter) priceMap[envStarter] = "starter";
+            if (envPro) priceMap[envPro] = "engine";
+            if (envElite) priceMap[envElite] = "dominator";
+
+            const subs = await stripe.subscriptions.list({
+              customer: prof.stripe_customer_id,
+              status: "active",
+              limit: 1,
+            });
+            if (subs.data.length > 0) {
+              const priceId = subs.data[0].items.data[0]?.price.id ?? "";
+              const newTier = priceMap[priceId] ?? "starter";
+              if (newTier !== prof.subscription_tier) {
+                await admin.from("profiles").update({ subscription_tier: newTier }).eq("id", checkUser.id);
+              }
+            }
+          }
+        }
+      } catch (syncErr) {
+        // Non-fatal — log and continue. Webhook will eventually sync.
+        console.warn("[dashboard] post-checkout sync failed:", syncErr instanceof Error ? syncErr.message : syncErr);
+      }
+    }
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -103,6 +163,13 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
 
   return (
     <div className="space-y-6">
+      {/* Subscription sync banner — shown after Stripe checkout redirect */}
+      <SubscriptionSyncBanner
+        lang={l}
+        justPaid={justPaid}
+        currentTier={(profileData as { subscription_tier?: string | null } | null)?.subscription_tier ?? null}
+      />
+
       <div>
         <h2 className="font-display font-bold text-2xl text-foreground mb-1">
           {t("dashboard.title", l)}

@@ -35,9 +35,11 @@ export default async function LogPage({ params }: LogPageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/${lang}/auth`);
 
+  // Fetch logs related to this contractor's leads or sent to them directly
   const { data: logsData } = await supabase
     .from("automated_logs")
     .select("*")
+    .or(`recipient.eq.${user.id},lead_id.in.(select id from leads where contractor_id.eq.${user.id})`)
     .order("created_at", { ascending: false })
     .limit(100);
 
