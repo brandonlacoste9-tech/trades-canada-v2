@@ -13,6 +13,27 @@ function getAdminSupabase() {
   return createSupabaseAdminClient<Database>(url, key, { auth: { persistSession: false } });
 }
 
+/** Checkout can return subscription as an id string or an expanded object. */
+async function loadSubscriptionFromCheckoutSession(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session
+): Promise<Stripe.Subscription | null> {
+  const raw = session.subscription;
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    return stripe.subscriptions.retrieve(raw);
+  }
+  return raw;
+}
+
+function tierFromSubscription(
+  subscription: Stripe.Subscription,
+  priceToTierMap: Record<string, string>
+): string {
+  const priceId = subscription.items.data[0]?.price.id ?? "";
+  return priceToTierMap[priceId] ?? "starter";
+}
+
 export async function POST(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2026-02-25.clover",
@@ -32,7 +53,6 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getAdminSupabase();
-  // Built on every invocation so env vars are read at runtime, not module load.
   const priceToTierMap = buildPriceToTierMap();
 
   try {
@@ -43,18 +63,26 @@ export async function POST(req: NextRequest) {
         const customerId = session.customer as string;
 
         if (!userId) {
-          console.warn("⚠️ checkout.session.completed: missing userId in metadata");
+          console.warn("⚠️ checkout.session.completed: missing userId in session metadata");
           break;
         }
 
-        // Retrieve subscription to get the price ID
-        const subscription = await stripe.subscriptions.retrieve(
-          session.subscription as string
-        );
-        const priceId = subscription.items.data[0]?.price.id ?? "";
-        const tier = priceToTierMap[priceId] ?? "starter";
+        if (session.mode !== "subscription") {
+          console.warn("⚠️ checkout.session.completed: mode is not subscription");
+          break;
+        }
 
-        console.log(`🔔 Checkout completed — user: ${userId}, priceId: ${priceId}, tier: ${tier}`);
+        const subscription = await loadSubscriptionFromCheckoutSession(stripe, session);
+        if (!subscription) {
+          console.error("❌ checkout.session.completed: could not load subscription");
+          break;
+        }
+
+        const tier = tierFromSubscription(subscription, priceToTierMap);
+
+        console.log(
+          `🔔 Checkout completed — user: ${userId}, priceId: ${subscription.items.data[0]?.price.id}, tier: ${tier}`
+        );
 
         const { error } = await admin.from("profiles").upsert(
           { id: userId, stripe_customer_id: customerId, subscription_tier: tier },
@@ -66,22 +94,38 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
-        const priceId = subscription.items.data[0]?.price.id ?? "";
-        const tier = priceToTierMap[priceId] ?? "starter";
-        const newTier = subscription.status === "active" || subscription.status === "trialing"
-          ? tier
-          : "starter";
+        const userId = subscription.metadata?.userId;
+        const tier = tierFromSubscription(subscription, priceToTierMap);
+        const newTier =
+          subscription.status === "active" || subscription.status === "trialing"
+            ? tier
+            : "starter";
 
-        console.log(`🔔 Subscription updated — customer: ${customerId}, priceId: ${priceId}, tier: ${newTier}`);
+        console.log(
+          `🔔 ${event.type} — customer: ${customerId}, userId: ${userId ?? "none"}, tier: ${newTier}`
+        );
 
-        const { error } = await admin.from("profiles")
-          .update({ subscription_tier: newTier })
-          .eq("stripe_customer_id", customerId);
-        if (error) {
-          console.error(`❌ Profile update failed for customer ${customerId}:`, error.message);
+        if (userId) {
+          const { error } = await admin.from("profiles").upsert(
+            {
+              id: userId,
+              stripe_customer_id: customerId,
+              subscription_tier: newTier,
+            },
+            { onConflict: "id" }
+          );
+          if (error) {
+            console.error(`❌ Profile upsert failed for user ${userId}:`, error.message);
+          }
+        } else {
+          await admin
+            .from("profiles")
+            .update({ subscription_tier: newTier })
+            .eq("stripe_customer_id", customerId);
         }
         break;
       }
@@ -92,7 +136,8 @@ export async function POST(req: NextRequest) {
 
         console.log(`🔔 Subscription cancelled — customer: ${customerId}`);
 
-        const { error } = await admin.from("profiles")
+        const { error } = await admin
+          .from("profiles")
           .update({ subscription_tier: "starter" })
           .eq("stripe_customer_id", customerId);
         if (error) {
@@ -108,9 +153,9 @@ export async function POST(req: NextRequest) {
 
         console.log(`🔔 Payment failed — customer: ${customerId}, attempt: ${attemptCount}`);
 
-        // Downgrade after 3 failed payment attempts
         if (attemptCount >= 3) {
-          await admin.from("profiles")
+          await admin
+            .from("profiles")
             .update({ subscription_tier: "starter" })
             .eq("stripe_customer_id", customerId);
         }

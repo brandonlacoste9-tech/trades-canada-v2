@@ -28,9 +28,36 @@ function getAdmin() {
   return createSupabaseAdminClient<Database>(url, key, { auth: { persistSession: false } });
 }
 
+/** When several Stripe customers share an email, prefer one with an active/trialing sub. */
+async function pickCustomerWithSubscription(
+  stripe: Stripe,
+  customers: Stripe.Customer[]
+): Promise<string | null> {
+  if (customers.length === 0) return null;
+  if (customers.length === 1) return customers[0].id;
+
+  for (const c of customers) {
+    const active = await stripe.subscriptions.list({
+      customer: c.id,
+      status: "active",
+      limit: 1,
+    });
+    if (active.data.length > 0) return c.id;
+  }
+  for (const c of customers) {
+    const trialing = await stripe.subscriptions.list({
+      customer: c.id,
+      status: "trialing",
+      limit: 1,
+    });
+    if (trialing.data.length > 0) return c.id;
+  }
+  return customers[0].id;
+}
+
 /**
  * Resolve tier from Stripe for a user. If profile has no stripe_customer_id but
- * the user email matches a Stripe customer (e.g. checkout just completed), link it.
+ * the user email matches Stripe customer(s), link the best matching customer.
  */
 export async function syncUserSubscriptionFromStripe(
   userId: string,
@@ -50,9 +77,13 @@ export async function syncUserSubscriptionFromStripe(
   const previousTier = profile?.subscription_tier ?? null;
 
   if (!customerId && userEmail) {
-    const list = await stripe.customers.list({ email: userEmail.trim().toLowerCase(), limit: 3 });
-    if (list.data.length > 0) {
-      customerId = list.data[0].id;
+    const list = await stripe.customers.list({
+      email: userEmail.trim().toLowerCase(),
+      limit: 10,
+    });
+    const picked = await pickCustomerWithSubscription(stripe, list.data);
+    if (picked) {
+      customerId = picked;
       await admin.from("profiles").upsert(
         { id: userId, stripe_customer_id: customerId },
         { onConflict: "id" }

@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: { userId: user.id },
+      // Copied onto the Subscription so webhook handlers can always map tier → profile
+      subscription_data: {
+        metadata: { userId: user.id },
+      },
       customer_email: user.email,
       allow_promotion_codes: true,
       billing_address_collection: "auto",
