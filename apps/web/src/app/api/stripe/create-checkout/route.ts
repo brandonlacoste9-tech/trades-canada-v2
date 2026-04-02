@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { getAllowedPriceIds } from "@/lib/stripe-prices";
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -19,16 +20,6 @@ function getAdminSupabase() {
     throw new Error("Supabase service role credentials not configured.");
   }
   return createSupabaseAdminClient<Database>(url, key, { auth: { persistSession: false } });
-}
-
-function getAllowedPriceIds(): Set<string> {
-  const ids = [
-    process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER,
-    process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
-    process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE,
-  ].filter((v): v is string => Boolean(v));
-
-  return new Set(ids);
 }
 
 export async function POST(req: NextRequest) {

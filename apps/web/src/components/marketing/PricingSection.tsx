@@ -4,15 +4,18 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Check, Zap, ArrowRight } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";
+import { HARDCODED_PRICE_IDS } from "@/lib/stripe-prices";
 
 interface PricingSectionProps {
   lang: Lang;
 }
 
+// Prefer env vars; fall back to hardcoded production price IDs so the
+// checkout flow works even when env vars aren't populated at build time.
 const PRICE_IDS = {
-  starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER!,
-  engine: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO!,
-  dominator: process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE!,
+  starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || HARDCODED_PRICE_IDS.starter,
+  engine: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || HARDCODED_PRICE_IDS.engine,
+  dominator: process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE || HARDCODED_PRICE_IDS.dominator,
 };
 
 const plans = [

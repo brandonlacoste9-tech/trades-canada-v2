@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/marketplace";
-
-
-
-
+import { buildPriceToTierMap } from "@/lib/stripe-prices";
 
 function getAdminSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,17 +13,10 @@ function getAdminSupabase() {
   return createSupabaseAdminClient<Database>(url, key, { auth: { persistSession: false } });
 }
 
-// Map Stripe Price IDs to internal subscription tiers
-const priceToTierMap: Record<string, string> = {
-  [process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || ""]: "starter",
-  [process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || ""]: "engine",
-  [process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE || ""]: "dominator",
-};
-
 export async function POST(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: "2024-06-20",
-  } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+    apiVersion: "2026-02-25.clover",
+  });
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
   const body = await req.text();
   const signature = req.headers.get("stripe-signature") as string;
@@ -42,6 +32,8 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getAdminSupabase();
+  // Built on every invocation so env vars are read at runtime, not module load.
+  const priceToTierMap = buildPriceToTierMap();
 
   try {
     switch (event.type) {
@@ -50,40 +42,47 @@ export async function POST(req: NextRequest) {
         const userId = session.metadata?.userId;
         const customerId = session.customer as string;
 
-        if (!userId) break;
+        if (!userId) {
+          console.warn("⚠️ checkout.session.completed: missing userId in metadata");
+          break;
+        }
 
-        // Fetch subscription to get the price ID
+        // Retrieve subscription to get the price ID
         const subscription = await stripe.subscriptions.retrieve(
           session.subscription as string
         );
-        const priceId = subscription.items.data[0].price.id;
-        const tier = priceToTierMap[priceId] || "starter";
+        const priceId = subscription.items.data[0]?.price.id ?? "";
+        const tier = priceToTierMap[priceId] ?? "starter";
 
-        console.log(`🔔 Checkout completed for user ${userId}, tier: ${tier}`);
+        console.log(`🔔 Checkout completed — user: ${userId}, priceId: ${priceId}, tier: ${tier}`);
 
-        await admin.from("profiles").update({
-          stripe_customer_id: customerId,
-          subscription_tier: tier,
-        }).eq("id", userId);
-        
+        const { error } = await admin.from("profiles").upsert(
+          { id: userId, stripe_customer_id: customerId, subscription_tier: tier },
+          { onConflict: "id" }
+        );
+        if (error) {
+          console.error(`❌ Profile upsert failed for user ${userId}:`, error.message);
+        }
         break;
       }
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
-        const priceId = subscription.items.data[0].price.id;
-        const tier = priceToTierMap[priceId] || "starter";
+        const priceId = subscription.items.data[0]?.price.id ?? "";
+        const tier = priceToTierMap[priceId] ?? "starter";
+        const newTier = subscription.status === "active" || subscription.status === "trialing"
+          ? tier
+          : "starter";
 
-        console.log(`🔔 Subscription updated for customer ${customerId}, new tier: ${tier}`);
+        console.log(`🔔 Subscription updated — customer: ${customerId}, priceId: ${priceId}, tier: ${newTier}`);
 
-        // Set status to starter if canceled but not yet expired
-        const newTier = subscription.status === "active" ? tier : "starter";
-
-        await admin.from("profiles").update({
-          subscription_tier: newTier,
-        }).eq("stripe_customer_id", customerId);
-
+        const { error } = await admin.from("profiles")
+          .update({ subscription_tier: newTier })
+          .eq("stripe_customer_id", customerId);
+        if (error) {
+          console.error(`❌ Profile update failed for customer ${customerId}:`, error.message);
+        }
         break;
       }
 
@@ -91,12 +90,30 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        console.log(`🔔 Subscription deleted for customer ${customerId}`);
+        console.log(`🔔 Subscription cancelled — customer: ${customerId}`);
 
-        await admin.from("profiles").update({
-          subscription_tier: "starter",
-        }).eq("stripe_customer_id", customerId);
+        const { error } = await admin.from("profiles")
+          .update({ subscription_tier: "starter" })
+          .eq("stripe_customer_id", customerId);
+        if (error) {
+          console.error(`❌ Profile downgrade failed for customer ${customerId}:`, error.message);
+        }
+        break;
+      }
 
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        const attemptCount = invoice.attempt_count ?? 0;
+
+        console.log(`🔔 Payment failed — customer: ${customerId}, attempt: ${attemptCount}`);
+
+        // Downgrade after 3 failed payment attempts
+        if (attemptCount >= 3) {
+          await admin.from("profiles")
+            .update({ subscription_tier: "starter" })
+            .eq("stripe_customer_id", customerId);
+        }
         break;
       }
 

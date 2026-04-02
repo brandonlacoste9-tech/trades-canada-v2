@@ -9,6 +9,7 @@ import DashboardStats from "@/components/dashboard/DashboardStats";
 import LeadMarketplace from "@/components/marketplace/LeadMarketplace";
 import SubscriptionSyncBanner from "@/components/dashboard/SubscriptionSyncBanner";
 import { evaluateLeadEligibility } from "@/lib/leadEligibility";
+import { buildPriceToTierMap } from "@/lib/stripe-prices";
 
 interface DashboardPageProps {
   params: Promise<{ lang: string }>;
@@ -49,17 +50,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
           if (prof?.stripe_customer_id) {
             const Stripe = (await import("stripe")).default;
             const stripe = new Stripe(stripeKey, { apiVersion: "2026-02-25.clover" });
-            const priceMap: Record<string, string> = {
-              "price_1TCyD0CzqBvMqSYFhDyf6YDp": "starter",
-              "price_1TCyDeCzqBvMqSYFl3sEMMw2": "engine",
-              "price_1TCyHwCzqBvMqSYFbv2HxlVh": "dominator",
-            };
-            const envStarter = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER;
-            const envPro = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
-            const envElite = process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE;
-            if (envStarter) priceMap[envStarter] = "starter";
-            if (envPro) priceMap[envPro] = "engine";
-            if (envElite) priceMap[envElite] = "dominator";
+            const priceMap = buildPriceToTierMap();
 
             const subs = await stripe.subscriptions.list({
               customer: prof.stripe_customer_id,

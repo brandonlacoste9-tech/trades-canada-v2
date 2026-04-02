@@ -3,25 +3,11 @@ import Stripe from "stripe";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { buildPriceToTierMap } from "@/lib/stripe-prices";
 
 const LOG = "[stripe/sync-subscription]";
 
-// Map Stripe Price IDs → internal tiers (same as webhook)
-function buildPriceToTierMap(): Record<string, string> {
-  const map: Record<string, string> = {
-    "price_1TCyD0CzqBvMqSYFhDyf6YDp": "starter",
-    "price_1TCyDeCzqBvMqSYFl3sEMMw2": "engine",
-    "price_1TCyHwCzqBvMqSYFbv2HxlVh": "dominator",
-  };
-  const envStarter = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER;
-  const envPro = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
-  const envElite = process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE;
-  if (envStarter) map[envStarter] = "starter";
-  if (envPro) map[envPro] = "engine";
-  if (envElite) map[envElite] = "dominator";
-  return map;
-}
-
+// Built at runtime so env vars are resolved after deployment.
 const priceToTierMap = buildPriceToTierMap();
 
 /**
