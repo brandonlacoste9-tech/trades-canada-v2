@@ -35,6 +35,7 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
 
   const handleSave = async () => {
     setSaving(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from("profiles") as any).upsert({
       id: userId,
       display_name: form.displayName,
@@ -65,6 +66,7 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
     setPolling(true);
 
     // Store code in profile table for bot verification
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from("profiles") as any).update({ 
       telegram_verification_code: code,
       updated_at: new Date().toISOString() 
@@ -72,6 +74,7 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
 
     // Poll for connection
     const interval = setInterval(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await (supabase.from("profiles") as any).select("telegram_chat_id").eq("id", userId).single();
       if (data?.telegram_chat_id) {
         setTelegramConnected(true);
@@ -88,6 +91,7 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
   };
 
   const disconnectTelegram = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from("profiles") as any)
       .update({ 
         telegram_chat_id: null,

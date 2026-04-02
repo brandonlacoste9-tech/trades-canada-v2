@@ -14,6 +14,7 @@ export default async function ContractorDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   
   const { data: profile } = user 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ? await (supabase.from("profiles").select("*").eq("id", user.id).single() as any)
     : { data: null };
 
