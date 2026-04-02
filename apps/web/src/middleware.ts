@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
 
   // ── Protect dashboard and settings routes ──
   const lang = isValidLang(potentialLang ?? "") ? potentialLang : defaultLocale;
-  const protectedPaths = [`/${lang}/dashboard`, `/${lang}/settings`];
+  const protectedPaths = [`/${lang}/dashboard`, `/${lang}/settings`, `/${lang}/admin`];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
   if (isProtected && !user) {
@@ -62,9 +62,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Redirect authenticated users away from auth page ──
-  // Allow through if they have a ?plan= param (pricing → checkout flow)
-  const hasPlanParam = request.nextUrl.searchParams.has("plan");
-  if (pathname === `/${lang}/auth` && user && !hasPlanParam) {
+  if (pathname === `/${lang}/auth` && user) {
     return NextResponse.redirect(new URL(`/${lang}/dashboard`, request.url));
   }
 
