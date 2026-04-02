@@ -1,21 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, Zap, ArrowRight, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Check, Zap, ArrowRight } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";
-import { createClient } from "@/lib/supabase/client";
 
 interface PricingSectionProps {
   lang: Lang;
 }
 
+const PRICE_IDS = {
+  starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER!,
+  engine: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO!,
+  dominator: process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE!,
+};
+
 const plans = [
   {
     nameKey: "pricing.starter.name" as const,
     price: "$149",
-    priceId: "price_1TCyD0CzqBvMqSYFhDyf6YDp",
+    priceId: PRICE_IDS.starter,
     features: {
       en: [
         "Marketplace Profile Access",
@@ -38,7 +42,7 @@ const plans = [
   {
     nameKey: "pricing.engine.name" as const,
     price: "$349",
-    priceId: "price_1TCyDeCzqBvMqSYFl3sEMMw2",
+    priceId: PRICE_IDS.engine,
     features: {
       en: [
         "Everything in Lead Starter",
@@ -63,7 +67,7 @@ const plans = [
   {
     nameKey: "pricing.dominator.name" as const,
     price: "$599",
-    priceId: "price_1TCyHwCzqBvMqSYFbv2HxlVh",
+    priceId: PRICE_IDS.dominator,
     features: {
       en: [
         "Everything in Lead Engine",
@@ -87,106 +91,6 @@ const plans = [
   },
 ];
 
-function PricingCard({ plan, lang, index }: { plan: typeof plans[0]; lang: Lang; index: number }) {
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
-  const handleClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      // Check if user is already logged in
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        // User is logged in → go directly to Stripe checkout
-        const res = await fetch("/api/stripe/create-checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ priceId: plan.priceId, lang }),
-        });
-        const payload = await res.json();
-        if (payload.url) {
-          window.location.href = payload.url;
-          return;
-        }
-        if (payload.error) {
-          console.error("Checkout error:", payload.error);
-        }
-      }
-
-      // User not logged in → redirect to auth with plan
-      router.push(`/${lang}/auth?plan=${plan.priceId}&mode=signup`);
-    } catch (err) {
-      console.error("Pricing click error:", err);
-      // Fallback: send to auth page
-      router.push(`/${lang}/auth?plan=${plan.priceId}&mode=signup`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <motion.div
-      key={plan.nameKey}
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4, delay: index * 0.1 }}
-      className={`relative rounded-2xl p-6 flex flex-col gap-6 ${
-        plan.popular
-          ? "bg-amber-500/8 border border-amber-500/30 shadow-amber"
-          : "glass-card cyber-border"
-      }`}
-    >
-      {plan.popular && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="flex items-center gap-1.5 px-4 py-1 rounded-full bg-amber-500 text-black text-xs font-display font-bold shadow-amber-sm">
-            <Zap className="w-3 h-3" />
-            {t("pricing.popular", lang)}
-          </span>
-        </div>
-      )}
-
-      <div>
-        <h3 className="font-display font-bold text-base text-foreground mb-3">
-          {t(plan.nameKey, lang)}
-        </h3>
-        <div className="flex items-baseline gap-1">
-          <span className="font-display font-bold text-4xl text-gradient-amber">{plan.price}</span>
-          <span className="text-muted-foreground text-sm">{t("pricing.month", lang)}</span>
-        </div>
-      </div>
-
-      <ul className="space-y-3 flex-1">
-        {plan.features[lang].map((feature) => (
-          <li key={feature} className="flex items-start gap-2.5">
-            <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <span className="text-muted-foreground text-sm">{feature}</span>
-          </li>
-        ))}
-      </ul>
-
-      <button
-        onClick={handleClick}
-        disabled={loading}
-        className={`${plan.popular ? "btn-amber justify-center" : "btn-outline-amber justify-center"} ${loading ? "opacity-70 pointer-events-none" : ""}`}
-      >
-        {loading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <>
-            {t(plan.cta, lang)}
-            <ArrowRight className="w-4 h-4" />
-          </>
-        )}
-      </button>
-    </motion.div>
-  );
-}
-
 export default function PricingSection({ lang }: PricingSectionProps) {
   return (
     <section id="pricing" className="py-24 relative overflow-hidden">
@@ -206,7 +110,59 @@ export default function PricingSection({ lang }: PricingSectionProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {plans.map((plan, i) => (
-            <PricingCard key={plan.nameKey} plan={plan} lang={lang} index={i} />
+            <motion.div
+              key={plan.nameKey}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.1 }}
+              className={`relative rounded-2xl p-6 flex flex-col gap-6 ${
+                plan.popular
+                  ? "bg-amber-500/8 border border-amber-500/30 shadow-amber"
+                  : "glass-card cyber-border"
+              }`}
+            >
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="flex items-center gap-1.5 px-4 py-1 rounded-full bg-amber-500 text-black text-xs font-display font-bold shadow-amber-sm">
+                    <Zap className="w-3 h-3" />
+                    {t("pricing.popular", lang)}
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <h3 className="font-display font-bold text-base text-foreground mb-3">
+                  {t(plan.nameKey, lang)}
+                </h3>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-display font-bold text-4xl text-gradient-amber">{plan.price}</span>
+                  <span className="text-muted-foreground text-sm">{t("pricing.month", lang)}</span>
+                </div>
+              </div>
+
+              <ul className="space-y-3 flex-1">
+                {plan.features[lang].map((feature) => (
+                  <li key={feature} className="flex items-start gap-2.5">
+                    <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground text-sm">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                href={`/${lang}/auth?plan=${plan.priceId}`}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("pending_price_id", plan.priceId);
+                  }
+                }}
+                className={plan.popular ? "btn-amber justify-center" : "btn-outline-amber justify-center"}
+              >
+                {t(plan.cta, lang)}
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
           ))}
         </div>
       </div>
