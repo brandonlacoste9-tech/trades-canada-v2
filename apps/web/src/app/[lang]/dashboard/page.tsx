@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { isValidLang, t, type Lang } from "@/lib/i18n";
 import { notFound, redirect } from "next/navigation";
 import type { Database } from "@/types/database";
@@ -9,7 +8,7 @@ import DashboardStats from "@/components/dashboard/DashboardStats";
 import LeadMarketplace from "@/components/marketplace/LeadMarketplace";
 import SubscriptionSyncBanner from "@/components/dashboard/SubscriptionSyncBanner";
 import { evaluateLeadEligibility } from "@/lib/leadEligibility";
-import { buildPriceToTierMap } from "@/lib/stripe-prices";
+import { syncUserSubscriptionFromStripe } from "@/lib/stripe-subscription-sync";
 
 interface DashboardPageProps {
   params: Promise<{ lang: string }>;
@@ -31,45 +30,25 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
   // subscription tier from Stripe before rendering — fixes the race
   // condition where the webhook hasn't fired yet.
   const justPaid = success === "1";
-  if (justPaid) {
-    const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (adminUrl && adminKey && stripeKey) {
-      try {
-        const supabaseCheck = await createClient();
-        const { data: { user: checkUser } } = await supabaseCheck.auth.getUser();
-        if (checkUser) {
-          const admin = createAdminClient<Database>(adminUrl, adminKey, { auth: { persistSession: false } });
-          const { data: prof } = await admin
-            .from("profiles")
-            .select("stripe_customer_id, subscription_tier")
-            .eq("id", checkUser.id)
-            .single();
-
-          if (prof?.stripe_customer_id) {
-            const Stripe = (await import("stripe")).default;
-            const stripe = new Stripe(stripeKey, { apiVersion: "2026-02-25.clover" });
-            const priceMap = buildPriceToTierMap();
-
-            const subs = await stripe.subscriptions.list({
-              customer: prof.stripe_customer_id,
-              status: "active",
-              limit: 1,
-            });
-            if (subs.data.length > 0) {
-              const priceId = subs.data[0].items.data[0]?.price.id ?? "";
-              const newTier = priceMap[priceId] ?? "starter";
-              if (newTier !== prof.subscription_tier) {
-                await admin.from("profiles").update({ subscription_tier: newTier }).eq("id", checkUser.id);
-              }
-            }
-          }
-        }
-      } catch (syncErr) {
-        // Non-fatal — log and continue. Webhook will eventually sync.
-        console.warn("[dashboard] post-checkout sync failed:", syncErr instanceof Error ? syncErr.message : syncErr);
+  if (
+    justPaid &&
+    process.env.STRIPE_SECRET_KEY &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL
+  ) {
+    try {
+      const supabaseCheck = await createClient();
+      const {
+        data: { user: checkUser },
+      } = await supabaseCheck.auth.getUser();
+      if (checkUser) {
+        await syncUserSubscriptionFromStripe(checkUser.id, checkUser.email);
       }
+    } catch (syncErr) {
+      console.warn(
+        "[dashboard] post-checkout sync failed:",
+        syncErr instanceof Error ? syncErr.message : syncErr
+      );
     }
   }
 

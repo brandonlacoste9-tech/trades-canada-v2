@@ -11,7 +11,6 @@ import {
   PipetteIcon as Pipe,
   TrendingUp,
   Award,
-  DollarSign,
   Hammer,
   Leaf,
   HardHat,
@@ -45,9 +44,9 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
   const [search, setSearch] = useState("");
   const [stats, setStats] = useState({
     newToday: 0,
-    totalMarket: 0,
-    quickUnlock: "12s",
-    premiumLeads: 0
+    leadsInNetwork: 0,
+    pipelineScoreAvg: 0,
+    premiumLeads: 0,
   });
 
   useEffect(() => {
@@ -118,11 +117,11 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
         </div>
         <div className="flex items-center gap-3 p-4 border-l border-border/20">
           <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
-            <DollarSign size={20} />
+            <Building2 size={20} />
           </div>
           <div>
-            <div className="text-xl font-bold">${(stats.totalMarket / 1000000).toFixed(1)}M</div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("marketplace.stats.totalMarket")}</div>
+            <div className="text-xl font-bold">{stats.leadsInNetwork}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("marketplace.stats.leadsInNetwork")}</div>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 border-l border-border/20">
@@ -130,8 +129,8 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
             <Zap size={20} />
           </div>
           <div>
-            <div className="text-xl font-bold">{stats.quickUnlock}</div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("marketplace.stats.quickUnlock")}</div>
+            <div className="text-xl font-bold">{stats.pipelineScoreAvg}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("marketplace.stats.avgLeadScore")}</div>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 border-l border-border/20">

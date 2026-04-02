@@ -15,10 +15,10 @@ export default function SubscriptionSyncBanner({ lang, justPaid, currentTier }: 
   const [synced, setSynced] = useState(false);
   const [tier, setTier] = useState(currentTier);
 
-  // Auto-sync once on mount when coming from a paid checkout
+  // After Stripe redirects here, tier is often still null until we sync — always run once.
   useEffect(() => {
-    if (justPaid && currentTier === "starter") {
-      syncSubscription();
+    if (justPaid) {
+      void syncSubscription();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

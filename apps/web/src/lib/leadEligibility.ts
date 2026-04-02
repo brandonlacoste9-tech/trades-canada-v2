@@ -26,7 +26,13 @@ function normalize(value: string): string {
 export function normalizeTier(rawTier: string | null | undefined): ContractorTier {
   const normalized = normalize(rawTier ?? "");
   if (normalized === "elite" || normalized.includes("dominator")) return "elite";
-  if (normalized === "pro" || normalized.includes("lead engine")) return "pro";
+  if (
+    normalized === "pro" ||
+    normalized === "engine" ||
+    normalized.includes("lead engine")
+  ) {
+    return "pro";
+  }
   return "starter";
 }
 

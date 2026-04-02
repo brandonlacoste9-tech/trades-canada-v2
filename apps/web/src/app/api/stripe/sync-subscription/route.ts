@@ -1,112 +1,47 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
-import { buildPriceToTierMap } from "@/lib/stripe-prices";
+import { syncUserSubscriptionFromStripe } from "@/lib/stripe-subscription-sync";
 
 const LOG = "[stripe/sync-subscription]";
-
-// Built at runtime so env vars are resolved after deployment.
-const priceToTierMap = buildPriceToTierMap();
 
 /**
  * GET /api/stripe/sync-subscription
  *
- * Fetches the user's active Stripe subscription directly from the Stripe API
- * and reconciles their profiles.subscription_tier. Solves the webhook
- * race-condition: call this endpoint immediately after the Stripe checkout
- * success redirect (?success=1) or from the Settings billing tab.
- *
- * Returns: { tier, synced, previous_tier }
+ * Reconciles profiles.subscription_tier from Stripe (active + trialing).
+ * If stripe_customer_id is missing, links the Stripe customer by account email.
  */
 export async function GET() {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey) {
+  if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
   }
 
-  const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!adminUrl || !adminKey) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: "Supabase not configured." }, { status: 503 });
   }
 
-  const admin = createSupabaseAdminClient<Database>(adminUrl, adminKey, { auth: { persistSession: false } });
-
-  // Fetch or create profile
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id, stripe_customer_id, subscription_tier")
-    .eq("id", user.id)
-    .single();
-
-  const previousTier = profile?.subscription_tier ?? null;
-
-  // No Stripe customer → no paid subscription
-  if (!profile?.stripe_customer_id) {
-    console.info(`${LOG} no stripe_customer_id for user ${user.id} — no subscription to sync`);
-    return NextResponse.json({ tier: previousTier ?? "starter", synced: false, previous_tier: previousTier });
-  }
-
   try {
-    const stripe = new Stripe(stripeKey, { apiVersion: "2026-02-25.clover" });
-
-    // Fetch all active subscriptions for this customer
-    const subscriptions = await stripe.subscriptions.list({
-      customer: profile.stripe_customer_id,
-      status: "active",
-      limit: 5,
+    const result = await syncUserSubscriptionFromStripe(user.id, user.email);
+    console.info(
+      `${LOG} user ${user.id} tier=${result.tier} synced=${result.synced} prev=${result.previousTier}`
+    );
+    return NextResponse.json({
+      tier: result.tier,
+      synced: result.synced,
+      previous_tier: result.previousTier,
+      stripe_customer_id: result.stripeCustomerId,
     });
-
-    let newTier = "starter";
-
-    if (subscriptions.data.length > 0) {
-      // Use the most recent active subscription
-      const sub = subscriptions.data[0];
-      const priceId = sub.items.data[0]?.price.id ?? "";
-      newTier = priceToTierMap[priceId] ?? "starter";
-    } else {
-      // Check for trialing subscriptions too
-      const trialingSubscriptions = await stripe.subscriptions.list({
-        customer: profile.stripe_customer_id,
-        status: "trialing",
-        limit: 1,
-      });
-      if (trialingSubscriptions.data.length > 0) {
-        const sub = trialingSubscriptions.data[0];
-        const priceId = sub.items.data[0]?.price.id ?? "";
-        newTier = priceToTierMap[priceId] ?? "starter";
-      }
-    }
-
-    // Only write if the tier changed (avoid unnecessary writes)
-    if (newTier !== previousTier) {
-      const { error: updateError } = await admin
-        .from("profiles")
-        .upsert({ id: user.id, subscription_tier: newTier }, { onConflict: "id" });
-
-      if (updateError) {
-        console.error(`${LOG} profile update failed for user ${user.id}:`, updateError.message);
-        return NextResponse.json({ error: "Failed to update profile.", tier: previousTier }, { status: 500 });
-      }
-
-      console.info(`${LOG} synced user ${user.id}: ${previousTier ?? "null"} → ${newTier}`);
-    } else {
-      console.info(`${LOG} user ${user.id} tier already correct: ${newTier}`);
-    }
-
-    return NextResponse.json({ tier: newTier, synced: newTier !== previousTier, previous_tier: previousTier });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`${LOG} Stripe error for user ${user.id}:`, message);
+    console.error(`${LOG} error for user ${user.id}:`, message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

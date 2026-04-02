@@ -6,6 +6,7 @@ import { User, MessageCircle, CreditCard, CheckCircle, Copy, RefreshCw } from "l
 import { t, type Lang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types/marketplace";
+import { getCanonicalPriceIds } from "@/lib/stripe-prices";
 
 
 interface SettingsClientProps {
@@ -90,6 +91,8 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
   };
 
   const [upgrading, setUpgrading] = useState(false);
+
+  const priceIds = getCanonicalPriceIds();
 
   const handleUpgrade = async (priceId: string) => {
     setUpgrading(true);
@@ -348,7 +351,7 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
                   <h4 className="font-display font-bold text-sm">Lead Engine</h4>
                   <p className="text-muted-foreground text-xs">Unlock unlimited marketplace leads and automation.</p>
                   <button 
-                    onClick={() => handleUpgrade(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO!)}
+                    onClick={() => handleUpgrade(priceIds.engine)}
                     disabled={upgrading}
                     className="btn-amber w-full text-xs"
                   >
@@ -359,7 +362,7 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
                   <h4 className="font-display font-bold text-sm">Lead Dominator</h4>
                   <p className="text-muted-foreground text-xs">Priority access and AI-powered lead scoring.</p>
                   <button 
-                    onClick={() => handleUpgrade(process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE!)}
+                    onClick={() => handleUpgrade(priceIds.dominator)}
                     disabled={upgrading}
                     className="btn-outline-amber w-full text-xs"
                   >
