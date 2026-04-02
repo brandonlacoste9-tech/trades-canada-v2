@@ -1,5 +1,8 @@
 import { type Lang } from "@/lib/i18n";
 import MarketplaceAnalytics from "@/components/admin/MarketplaceAnalytics";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 
 interface AdminPageProps {
@@ -10,6 +13,18 @@ interface AdminPageProps {
 
 export default async function AdminMarketplacePage({ params }: AdminPageProps) {
   const { lang } = await params;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect(`/${lang}/auth`);
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin") notFound();
 
   return (
     <div className="min-h-screen bg-black text-foreground selection:bg-amber-500/30">
