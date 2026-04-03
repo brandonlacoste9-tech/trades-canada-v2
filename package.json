@@ -17,7 +17,8 @@
     "gen:types": "pnpm --filter @trades-canada/web gen:types",
     "validate:ops": "node ./scripts/validate-ops.mjs",
     "check": "pnpm type-check && pnpm --filter @trades-canada/web lint",
-    "check:web": "pnpm --filter @trades-canada/web type-check && pnpm --filter @trades-canada/web lint"
+    "check:web": "pnpm --filter @trades-canada/web type-check && pnpm --filter @trades-canada/web lint",
+    "test:e2e": "pnpm --filter @trades-canada/web test:e2e"
   },
   "devDependencies": {
     "turbo": "^2.8.21",
