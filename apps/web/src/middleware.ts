@@ -62,8 +62,13 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Redirect authenticated users away from auth page ──
+  // Exception: allow /auth?plan=price_... so pricing CTAs can open Stripe Checkout
+  // (otherwise the redirect to dashboard drops the plan and users stay on "free" tier).
   if (pathname === `/${lang}/auth` && user) {
-    return NextResponse.redirect(new URL(`/${lang}/dashboard`, request.url));
+    const plan = request.nextUrl.searchParams.get("plan");
+    if (!plan || !plan.startsWith("price_")) {
+      return NextResponse.redirect(new URL(`/${lang}/dashboard`, request.url));
+    }
   }
 
   return supabaseResponse;

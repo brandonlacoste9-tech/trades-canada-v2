@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogIn, UserPlus, Mail, Lock, User, Building2, Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -31,38 +31,98 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
 
   const supabase = createClient();
   const meta = useMetaEvents();
+  /** Avoid duplicate Stripe session if React Strict Mode runs the effect twice. */
+  const checkoutGuardKey =
+    typeof planId === "string" ? `tc_stripe_launch_${planId}` : null;
+
+  const startStripeCheckout = useCallback(
+    async (activePriceId: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/stripe/create-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ priceId: activePriceId, lang }),
+        });
+        const payload = (await res.json()) as { url?: string; error?: string };
+        if (!res.ok) {
+          return {
+            ok: false,
+            message: payload.error ?? (lang === "en" ? "Could not start checkout." : "Impossible de démarrer le paiement."),
+          };
+        }
+        if (!payload.url) {
+          return {
+            ok: false,
+            message: lang === "en" ? "Missing checkout URL." : "URL de paiement manquante.",
+          };
+        }
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("pending_price_id");
+        }
+        window.location.href = payload.url;
+        return { ok: true };
+      } catch (err) {
+        console.error("Checkout failed:", err);
+        return {
+          ok: false,
+          message: lang === "en" ? "Could not start checkout. Try again or use Settings → Billing." : "Paiement impossible. Réessayez ou utilisez Paramètres → Facturation.",
+        };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [lang]
+  );
 
   const maybeStartCheckout = async () => {
     let activePriceId = planId;
     if (!activePriceId && typeof window !== "undefined") {
       activePriceId = localStorage.getItem("pending_price_id") || undefined;
     }
-    
+
     if (!activePriceId) return false;
 
-    setLoading(true);
-    try {
-      const res = await fetch("/api/stripe/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId: activePriceId, lang }),
-      });
-      if (!res.ok) throw new Error("Could not start checkout.");
-      const payload = (await res.json()) as { url?: string };
-      if (!payload.url) throw new Error("Missing checkout URL.");
-      
-      // Clear intent before redirecting
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("pending_price_id");
-      }
-      
-      window.location.href = payload.url;
-      return true;
-    } catch (err) {
-      console.error("Checkout failed:", err);
-      return false;
+    const result = await startStripeCheckout(activePriceId);
+    if (!result.ok && "message" in result) {
+      setMessage({ type: "error", text: result.message });
     }
+    return result.ok;
   };
+
+  // Logged-in users used to be redirected away from /auth?plan=... by middleware; now allowed.
+  // If they land here with a session + plan, send them straight to Stripe.
+  useEffect(() => {
+    if (!planId || !checkoutGuardKey) return;
+
+    let cancelled = false;
+
+    (async () => {
+      if (typeof window !== "undefined" && sessionStorage.getItem(checkoutGuardKey)) return;
+
+      const client = createClient();
+      const {
+        data: { user },
+      } = await client.auth.getUser();
+      if (cancelled || !user) return;
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(checkoutGuardKey, "1");
+      }
+
+      const result = await startStripeCheckout(planId);
+      if (!result.ok && "message" in result) {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem(checkoutGuardKey);
+        }
+        setMessage({ type: "error", text: result.message });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [planId, checkoutGuardKey, startStripeCheckout]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,8 +138,14 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
         if (error) throw error;
         const redirectedToCheckout = await maybeStartCheckout();
         if (!redirectedToCheckout) {
-          router.push(`/${lang}/dashboard`);
-          router.refresh();
+          const hadPlanIntent =
+            Boolean(planId) ||
+            (typeof window !== "undefined" && Boolean(localStorage.getItem("pending_price_id")));
+          // If checkout failed after login, keep user on auth so they see the error — don't send them to "free" dashboard.
+          if (!hadPlanIntent) {
+            router.push(`/${lang}/dashboard`);
+            router.refresh();
+          }
         }
       } else if (mode === "signup") {
         const checkoutNext = planId
