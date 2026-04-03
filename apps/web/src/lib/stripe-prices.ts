@@ -10,9 +10,9 @@
  */
 
 export const HARDCODED_PRICE_IDS = {
-  starter: "price_1TCyD0CzqBvMqSYFhDyf6YDp",
-  engine: "price_1TCyDeCzqBvMqSYFl3sEMMw2",
-  dominator: "price_1TCyHwCzqBvMqSYFbv2HxlVh",
+  starter: "price_1TDOBMCzqBvMqSYF3JIUcIoZ",
+  engine: "price_1TDOBdCzqBvMqSYFxhVj30bZ",
+  dominator: "price_1TDOBrCzqBvMqSYFIpdKuwPF",
 } as const;
 
 /** Returns the canonical price ID for each tier, preferring env vars. */

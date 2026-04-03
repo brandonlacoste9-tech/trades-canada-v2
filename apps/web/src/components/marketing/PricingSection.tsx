@@ -21,7 +21,7 @@ const PRICE_IDS = {
 const plans = [
   {
     nameKey: "pricing.starter.name" as const,
-    price: "$149",
+    price: "$199",
     priceId: PRICE_IDS.starter,
     features: {
       en: [
@@ -44,7 +44,7 @@ const plans = [
   },
   {
     nameKey: "pricing.engine.name" as const,
-    price: "$349",
+    price: "$399",
     priceId: PRICE_IDS.engine,
     features: {
       en: [
@@ -140,7 +140,7 @@ export default function PricingSection({ lang }: PricingSectionProps) {
                 </h3>
                 <div className="flex items-baseline gap-1">
                   <span className="font-display font-bold text-4xl text-gradient-amber">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm">{t("pricing.month", lang)}</span>
+                  <span className="text-muted-foreground text-sm">CAD/{t("pricing.month", lang)}</span>
                 </div>
               </div>
 
