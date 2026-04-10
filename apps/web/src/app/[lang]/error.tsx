@@ -27,12 +27,13 @@ export default function LangError({ error, reset }: ErrorProps) {
           <p className="text-muted-foreground text-sm">
             An unexpected error occurred. Please try again or return home.
           </p>
-          {error.digest && (
-            <p className="text-xs text-muted-foreground font-mono">
-              Ref: {error.digest}
-            </p>
-          )}
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 rounded p-3 text-xs font-mono break-all text-left">
+            <p className="font-bold mb-1">Error details:</p>
+            {error?.message || "Unknown error"}
+            {error?.digest && <span className="block mt-1 opacity-70">Ref: {error.digest}</span>}
+          </div>
         </div>
+
         <div className="flex justify-center gap-3">
           <button
             onClick={reset}
