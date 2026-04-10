@@ -102,13 +102,36 @@ export async function POST(req: NextRequest) {
   if (insertErr) {
     if (insertErr.code === "23505") {
       // Already unlocked — return the lead data anyway
-      const { data: existingLead } = await admin
+      let existingLeadData = null;
+      const { data: existingRegularLead } = await admin
         .from("leads")
         .select("id, name, email, phone, message, city, project_type")
         .eq("id", leadId)
         .single();
+        
+      if (existingRegularLead) {
+        existingLeadData = existingRegularLead;
+      } else {
+        const { data: existingScrapedLead } = await admin
+          .from("scraped_inventory")
+          .select("id, title, location, url, permit_number, city")
+          .eq("id", leadId)
+          .single();
+          
+        if (existingScrapedLead) {
+          existingLeadData = {
+             id: existingScrapedLead.id,
+             name: tier === "elite" ? `Verified Owner (Permit ${existingScrapedLead.permit_number || "N/A"})` : `Permit: ${existingScrapedLead.permit_number || "Open Data"}`,
+             city: existingScrapedLead.city,
+             url: existingScrapedLead.url,
+             email: null,
+             phone: tier === "elite" ? `(Previously enriched — click to re-fetch)` : null
+          };
+        }
+      }
+      
       return NextResponse.json(
-        { error: "ALREADY_UNLOCKED", message: "You've already unlocked this lead.", lead: existingLead ?? null },
+        { error: "ALREADY_UNLOCKED", message: "You've already unlocked this lead.", lead: existingLeadData ?? null },
         { status: 409 }
       );
     }
@@ -120,11 +143,119 @@ export async function POST(req: NextRequest) {
   }
 
   // 7. Return the lead contact details
-  const { data: lead } = await admin
+  let leadData = null;
+
+  // First try to fetch from regular leads
+  const { data: regularLead } = await admin
     .from("leads")
     .select("id, name, email, phone, message, city, project_type")
     .eq("id", leadId)
     .single();
+    
+  if (regularLead) {
+    leadData = regularLead;
+  } else {
+    // If not in leads, try scraped_inventory (Firecrawl leads)
+    const { data: scrapedLead } = await admin
+      .from("scraped_inventory")
+      .select("id, title, location, url, permit_number, city")
+      .eq("id", leadId)
+      .single();
+      
+    if (scrapedLead) {
+      if (tier === "starter") {
+        // Starters cannot unlock Firecrawl intel
+        await admin.from("lead_unlocks").delete().eq("contractor_id", user.id).eq("lead_id", leadId);
+        return NextResponse.json(
+          { error: "UPGRADE_REQUIRED", message: "Starter tier cannot access Municipal Intel. Please upgrade to Pro or Elite." },
+          { status: 403 }
+        );
+      }
+      
+      // Base info for Pro
+      leadData = {
+        id: scrapedLead.id,
+        name: `Permit: ${scrapedLead.permit_number || "Open Data"}`,
+        city: scrapedLead.city,
+        url: scrapedLead.url,
+        // No email for municipal data
+        email: null,
+        phone: null as string | null
+      };
 
-  return NextResponse.json({ success: true, lead: lead ?? null });
+      // Full AI Enrichment for Elite — Apollo.io People Search + Enrichment
+      if (tier === "elite") {
+        const apolloKey = process.env.APOLLO_API_KEY;
+        let enrichedName: string | null = null;
+        let enrichedPhone: string | null = null;
+        let enrichedEmail: string | null = null;
+
+        if (apolloKey && scrapedLead.city) {
+          try {
+            // Step 1: Search Apollo for people in the permit's city
+            const searchRes = await fetch("https://api.apollo.io/api/v1/mixed_people/api_search", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-api-key": apolloKey },
+              body: JSON.stringify({
+                person_locations: [scrapedLead.city],
+                per_page: 3,
+                page: 1,
+              }),
+            });
+
+            if (searchRes.ok) {
+              const searchData = await searchRes.json() as {
+                people?: Array<{ id?: string; first_name?: string; last_name?: string; name?: string }>;
+              };
+              const topMatch = searchData.people?.[0];
+
+              if (topMatch?.id) {
+                // Step 2: Enrich the top match to get phone/email
+                const enrichRes = await fetch("https://api.apollo.io/api/v1/people/match", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "x-api-key": apolloKey },
+                  body: JSON.stringify({ id: topMatch.id }),
+                });
+
+                if (enrichRes.ok) {
+                  const enrichData = await enrichRes.json() as {
+                    person?: {
+                      name?: string;
+                      first_name?: string;
+                      last_name?: string;
+                      phone_numbers?: Array<{ sanitized_number?: string }>;
+                      email?: string;
+                    };
+                  };
+                  const person = enrichData.person;
+                  if (person) {
+                    enrichedName = person.name || `${person.first_name || ""} ${person.last_name || ""}`.trim() || null;
+                    enrichedPhone = person.phone_numbers?.[0]?.sanitized_number || null;
+                    enrichedEmail = person.email || null;
+                  }
+                }
+              }
+            }
+          } catch (apolloErr) {
+            console.warn("[unlock] Apollo enrichment failed, falling back:", apolloErr instanceof Error ? apolloErr.message : apolloErr);
+          }
+        }
+
+        // Apply enriched data or graceful fallback
+        leadData.name = enrichedName
+          ? `${enrichedName} (Permit ${scrapedLead.permit_number || "N/A"})`
+          : `Verified Owner (Permit ${scrapedLead.permit_number || "N/A"})`;
+        leadData.phone = enrichedPhone ? `${enrichedPhone} (Apollo Verified)` : null;
+        if (enrichedEmail) {
+          (leadData as Record<string, unknown>).email = enrichedEmail;
+        }
+      }
+    }
+  }
+
+  if (!leadData) {
+    return NextResponse.json({ error: "Lead not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ success: true, lead: leadData });
 }

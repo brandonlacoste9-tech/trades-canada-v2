@@ -199,6 +199,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
                 createdAt: le.created_at,
                 isUnlocked: true,
                 status: le.status,
+                name: le.name,
                 email: le.email,
                 phone: le.phone
               })),
@@ -212,20 +213,35 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
                 description: le.message || "",
                 createdAt: le.created_at,
                 isUnlocked: unlockedLeadIds.has(le.id),
+                name: unlockedLeadIds.has(le.id) ? le.name : undefined,
                 email: unlockedLeadIds.has(le.id) ? le.email : undefined,
                 phone: unlockedLeadIds.has(le.id) ? le.phone : undefined,
               })),
-              ...permits.map(p => ({
-                id: p.id,
-                title: p.title,
-                source: l === 'en' ? "Municipal Data" : "Données municipales",
-                location: p.location || p.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
-                projectType: p.project_type || 'general',
-                value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
-                description: p.description || "",
-                createdAt: p.scraped_at,
-                isUnlocked: false
-              }))
+              ...permits.map(p => {
+                const isUnlocked = unlockedLeadIds.has(p.id);
+                let phoneOption = undefined;
+                let nameOption = undefined;
+                if (isUnlocked && profileData?.subscription_tier === "elite") {
+                  phoneOption = `(Apollo Enriched)`;
+                  nameOption = `Verified Owner (Permit ${p.permit_number || "N/A"})`;
+                } else if (isUnlocked) {
+                  nameOption = `Permit: ${p.permit_number || "Open Data"}`;
+                }
+                return {
+                  id: p.id,
+                  title: p.title,
+                  source: l === 'en' ? "Municipal Data" : "Données municipales",
+                  location: p.location || p.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+                  projectType: p.project_type || 'general',
+                  value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
+                  description: p.description || "",
+                  createdAt: p.scraped_at,
+                  isUnlocked,
+                  name: nameOption,
+                  url: isUnlocked ? p.url : undefined,
+                  phone: phoneOption
+                };
+              })
             ].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())}
           />
         </div>

@@ -20,6 +20,8 @@ import {
   Phone,
   Mail,
   Eye,
+  User,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Lang, useTranslations } from "@/lib/i18n";
@@ -36,14 +38,18 @@ interface LeadCardProps {
   createdAt: string | Date;
   isUnlocked?: boolean;
   status?: string;
+  name?: string;
   email?: string;
   phone?: string;
+  url?: string;
   lang?: Lang;
 }
 
 interface UnlockedContact {
+  name?: string | null;
   email?: string | null;
   phone?: string | null;
+  url?: string | null;
 }
 
 const projectTypeColor: Record<string, string> = {
@@ -66,6 +72,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
   description,
   createdAt,
   isUnlocked = false,
+  name: initialName,
   email: initialEmail,
   phone: initialPhone,
   lang = "en",
@@ -74,6 +81,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
   const [unlocked, setUnlocked] = useState(isUnlocked);
   const [isInspecting, setIsInspecting] = useState(false);
   const [contact, setContact] = useState<UnlockedContact>({
+    name: initialName,
     email: initialEmail,
     phone: initialPhone,
   });
@@ -119,7 +127,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
       }
 
       setUnlocked(true);
-      if (data.lead) setContact({ email: data.lead.email, phone: data.lead.phone });
+      if (data.lead) setContact({ name: data.lead.name, email: data.lead.email, phone: data.lead.phone, url: data.lead.url });
     } catch {
       setError(lang === "en" ? "Network error. Please try again." : "Erreur réseau. Veuillez réessayer.");
     } finally {
@@ -223,6 +231,11 @@ const LeadCard: React.FC<LeadCardProps> = ({
             </span>
             {unlocked ? (
               <div className="flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-1">
+                {contact.name && (
+                  <span className="flex items-center gap-1 text-xs font-mono text-foreground font-bold">
+                    <User size={11} className="text-green-400" /> {contact.name}
+                  </span>
+                )}
                 {contact.phone && (
                   <span className="flex items-center gap-1 text-xs font-mono text-green-400 font-bold">
                     <Phone size={11} /> {contact.phone}
@@ -232,6 +245,11 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   <span className="flex items-center gap-1 text-xs font-mono text-green-400 font-bold break-all">
                     <Mail size={11} /> {contact.email}
                   </span>
+                )}
+                {contact.url && !contact.phone && !contact.email && (
+                  <a href={contact.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-mono text-blue-400 font-bold hover:underline" onClick={(e) => e.stopPropagation()}>
+                    <ExternalLink size={11} /> {lang === "en" ? "View Original Permit" : "Voir permis original"}
+                  </a>
                 )}
               </div>
             ) : (
@@ -440,6 +458,15 @@ const LeadCard: React.FC<LeadCardProps> = ({
                       {lang === "en" ? "Contact Unlocked" : "Contact Déverrouillé"}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {contact.name && (
+                        <div className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                          <User size={18} className="text-green-400" />
+                          <div>
+                            <p className="text-[9px] uppercase tracking-widest font-black text-green-400/60">Name</p>
+                            <p className="font-mono font-bold text-sm text-foreground">{contact.name}</p>
+                          </div>
+                        </div>
+                      )}
                       {contact.phone && (
                         <a
                           href={`tel:${contact.phone}`}
@@ -463,6 +490,21 @@ const LeadCard: React.FC<LeadCardProps> = ({
                           <div>
                             <p className="text-[9px] uppercase tracking-widest font-black text-green-400/60">Email</p>
                             <p className="font-mono font-bold text-sm truncate">{contact.email}</p>
+                          </div>
+                        </a>
+                      )}
+                      {contact.url && (
+                        <a
+                          href={contact.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-3 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/15 transition-colors"
+                        >
+                          <ExternalLink size={18} className="text-blue-400" />
+                          <div>
+                            <p className="text-[9px] uppercase tracking-widest font-black text-blue-400/60">Source</p>
+                            <p className="font-mono font-bold text-sm truncate">{lang === "en" ? "Municipal Record" : "Dossier municipal"}</p>
                           </div>
                         </a>
                       )}

@@ -29,6 +29,7 @@ interface LeadData {
   createdAt: string | Date;
   isUnlocked?: boolean;
   status?: string;
+  name?: string;
   email?: string;
   phone?: string;
 }
