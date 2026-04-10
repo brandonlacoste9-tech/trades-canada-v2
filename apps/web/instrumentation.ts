@@ -12,7 +12,6 @@ export async function register() {
       dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
       tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 0,
       environment: process.env.NODE_ENV,
-      // Only send errors to Sentry in production
       enabled: process.env.NODE_ENV === "production",
     });
   }
@@ -27,3 +26,9 @@ export async function register() {
     });
   }
 }
+
+// Required for Sentry to capture errors from nested React Server Components
+export const onRequestError = async (...args: Parameters<typeof import("@sentry/nextjs").captureRequestError>) => {
+  const { captureRequestError } = await import("@sentry/nextjs");
+  captureRequestError(...args);
+};

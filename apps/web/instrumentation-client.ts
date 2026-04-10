@@ -22,3 +22,6 @@ Sentry.init({
     }),
   ],
 });
+
+// Required for Sentry to instrument client-side navigation transitions
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
