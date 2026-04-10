@@ -190,9 +190,9 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
             initialLeads={[
               ...myLeads.map(le => ({
                 id: le.id,
-                title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : (l === 'en' ? "Direct Inquiry" : "Demande directe"),
+                title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
                 source: l === 'en' ? "Direct Request" : "Demande directe",
-                location: le.city || 'Quebec, QC',
+                location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
                 projectType: le.project_type,
                 value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
                 description: le.message || "",
@@ -204,9 +204,9 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
               })),
               ...marketLeads.map(le => ({
                 id: le.id,
-                title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : (l === 'en' ? "Direct Inquiry" : "Demande directe"),
+                title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
                 source: l === 'en' ? "Direct Request" : "Demande directe",
-                location: le.city || 'Quebec, QC',
+                location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
                 projectType: le.project_type,
                 value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
                 description: le.message || "",
@@ -219,7 +219,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
                 id: p.id,
                 title: p.title,
                 source: l === 'en' ? "Municipal Data" : "Données municipales",
-                location: p.location || p.city || 'Quebec, QC',
+                location: p.location || p.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
                 projectType: p.project_type || 'general',
                 value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
                 description: p.description || "",
