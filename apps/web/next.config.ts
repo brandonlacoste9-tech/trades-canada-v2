@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
   images: {
+    formats: ["image/avif", "image/webp"],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "https", hostname: "images.unsplash.com" },
@@ -32,7 +34,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https://*.supabase.co https://images.unsplash.com",
-              "connect-src 'self' https://*.supabase.co https://api.stripe.com https://graph.facebook.com",
+              "connect-src 'self' https://*.supabase.co https://api.stripe.com https://graph.facebook.com https://*.sentry.io https://o*.ingest.sentry.io",
               "frame-src https://js.stripe.com https://hooks.stripe.com",
               "font-src 'self'",
             ].join("; "),
@@ -55,4 +57,5 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.CI,
   widenClientFileUpload: true,
   disableLogger: true,
+  automaticVercelMonitors: true,
 });

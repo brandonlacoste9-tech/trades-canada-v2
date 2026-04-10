@@ -41,7 +41,7 @@ export default function HeroSection({ lang }: HeroSectionProps) {
           alt="Canadian tradesman on a construction site overlooking the Toronto skyline at dusk"
           fill
           priority
-          quality={90}
+          quality={75}
           className="object-cover object-center"
           sizes="100vw"
         />

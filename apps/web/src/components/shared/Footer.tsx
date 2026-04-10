@@ -62,7 +62,7 @@ export default function Footer({ lang }: FooterProps) {
               {[
                 { href: `/${lang}#features`, label: t("nav.features", lang) },
                 { href: `/${lang}#pricing`, label: t("nav.pricing", lang) },
-                { href: `/${lang}/join`, label: t("nav.bookCall", lang) },
+                { href: `/${lang}/booking`, label: t("nav.bookCall", lang) },
                 { href: `/${lang}/auth`, label: t("nav.login", lang) },
                 { href: lang === "en" ? "/fr" : "/en", label: lang === "en" ? "Français" : "English" },
               ].map((link) => (

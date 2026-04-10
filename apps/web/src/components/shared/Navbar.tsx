@@ -84,7 +84,7 @@ export default function Navbar({ lang }: NavbarProps) {
                 {t("nav.login", lang)}
               </Link>
 
-              <Link href={`/${lang}/join`} className="btn-amber text-sm">
+              <Link href={`/${lang}/booking`} className="btn-amber text-sm">
                 {t("nav.getQuote", lang)}
                 <ChevronRight className="w-4 h-4" />
               </Link>
@@ -132,7 +132,7 @@ export default function Navbar({ lang }: NavbarProps) {
                   <LogIn className="w-4 h-4" />
                   {t("nav.login", lang)}
                 </Link>
-                <Link href={`/${lang}/join`} onClick={() => setMobileOpen(false)} className="btn-amber text-sm">
+                <Link href={`/${lang}/booking`} onClick={() => setMobileOpen(false)} className="btn-amber text-sm">
                   {t("nav.getQuote", lang)}
                 </Link>
               </div>
