@@ -18,7 +18,10 @@ export type StripeSyncResult = {
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY is not configured.");
-  return new Stripe(key, { apiVersion: "2026-02-25.clover" });
+  return new Stripe(key, { 
+    apiVersion: "2026-02-25.clover",
+    httpClient: Stripe.createFetchHttpClient(),
+  });
 }
 
 function getAdmin() {
