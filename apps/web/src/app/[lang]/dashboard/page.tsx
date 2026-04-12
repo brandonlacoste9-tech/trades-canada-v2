@@ -202,7 +202,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
           createdAt: p.scraped_at,
           isUnlocked,
           name: nameOption,
-          url: isUnlocked ? p.url : undefined,
+          url: isUnlocked ? (p.url ?? undefined) : undefined,
           phone: phoneOption
         };
       })
