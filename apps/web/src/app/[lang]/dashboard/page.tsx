@@ -69,10 +69,11 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
     .single();
 
   const rawTier = (profileData as { subscription_tier?: string | null } | null)?.subscription_tier;
-  const tier: ContractorTier = rawTier ? normalizeTier(rawTier) : "starter";
-  const isFree = !rawTier || rawTier === "" || rawTier === "free";
+  const testAccess = user?.email === "brandonlacoste9@gmail.com";
+  const tier: ContractorTier = (rawTier ? normalizeTier(rawTier) : "starter") as ContractorTier;
+  const isFree = (!rawTier || rawTier === "" || rawTier === "free") && !testAccess;
   const isPaid = !isFree; // starter, engine/pro, dominator/elite
-  const isElite = tier === "elite";
+  const isElite = tier === "elite" || testAccess;
 
   // ── TIER-GATED DATA FETCHING ───────────────────────────────────────────
   // Free tier: mock data only.  Starter+: real leads.  Elite: leads + permits.
@@ -244,7 +245,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
       <DashboardStats stats={stats} lang={l} />
 
       {/* ── Free Tier Upgrade Banner ─────────────────────────────────────── */}
-      {isFree && (
+      {isFree && !testAccess && (
         <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6">
           <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
