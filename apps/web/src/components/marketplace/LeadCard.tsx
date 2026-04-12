@@ -242,25 +242,31 @@ const LeadCard: React.FC<LeadCardProps> = ({
               {t("dashboard.verifiedContact")}
             </span>
             {unlocked ? (
-              <div className="flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-1">
+              <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1">
                 {contact.name && (
-                  <span className="flex items-center gap-1 text-xs font-mono text-foreground font-bold">
-                    <User size={11} className="text-green-400" /> {contact.name}
+                  <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+                    <User size={14} className="text-primary" /> 
+                    {contact.name}
+                    {contact.name.includes("Verified") && (
+                      <span className="px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[8px] uppercase font-black tracking-tighter">AI Enriched</span>
+                    )}
                   </span>
                 )}
-                {contact.phone && (
-                  <span className="flex items-center gap-1 text-xs font-mono text-green-400 font-bold">
-                    <Phone size={11} /> {contact.phone}
-                  </span>
-                )}
-                {contact.email && (
-                  <span className="flex items-center gap-1 text-xs font-mono text-green-400 font-bold break-all">
-                    <Mail size={11} /> {contact.email}
-                  </span>
-                )}
+                <div className="flex items-center gap-4">
+                  {contact.phone && (
+                    <span className="flex items-center gap-1.5 text-xs font-mono text-green-500 font-bold bg-green-500/5 px-2 py-1 rounded-lg border border-green-500/10">
+                      <Phone size={12} /> {contact.phone}
+                    </span>
+                  )}
+                  {contact.email && (
+                    <span className="flex items-center gap-1.5 text-xs font-mono text-blue-500 font-bold bg-blue-500/5 px-2 py-1 rounded-lg border border-blue-500/10">
+                      <Mail size={12} /> {contact.email}
+                    </span>
+                  )}
+                </div>
                 {contact.url && !contact.phone && !contact.email && (
-                  <a href={contact.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-mono text-blue-400 font-bold hover:underline" onClick={(e) => e.stopPropagation()}>
-                    <ExternalLink size={11} /> {lang === "en" ? "View Original Permit" : "Voir permis original"}
+                  <a href={contact.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-bold text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                    <ExternalLink size={12} /> {lang === "en" ? "Review Permit Details" : "Voir détails du permis"}
                   </a>
                 )}
               </div>
