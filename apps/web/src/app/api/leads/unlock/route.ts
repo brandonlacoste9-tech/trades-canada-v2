@@ -64,6 +64,14 @@ export async function POST(req: NextRequest) {
   // Normalize tier for logic checks
   const { normalizeTier } = await import("@/lib/leadEligibility");
   const tier = normalizeTier(rawTier);
+  const isFree = !rawTier || rawTier === "" || rawTier === "free";
+
+  if (isFree) {
+    return NextResponse.json(
+      { error: "UPGRADE_REQUIRED", message: "You are on the free tier. Please subscribe to a paid plan to unlock real leads." },
+      { status: 403 }
+    );
+  }
 
   // 5. If the plan has a cap, count this contractor's monthly unlocks
   if (leadLimit !== null) {
@@ -167,16 +175,10 @@ export async function POST(req: NextRequest) {
       .single();
       
     if (scrapedLead) {
-      if (tier === "starter") {
-        // Starters cannot unlock Firecrawl intel
-        await admin.from("lead_unlocks").delete().eq("contractor_id", user.id).eq("lead_id", leadId);
-        return NextResponse.json(
-          { error: "UPGRADE_REQUIRED", message: "Starter tier cannot access Municipal Intel. Please upgrade to Pro or Elite." },
-          { status: 403 }
-        );
-      }
+      // Both Starter and Elite can unlock Municipal Intel now.
+      // (Used to block Starter, but user requirements changed)
       
-      // Base info for Pro
+      // Base info for all paid tiers
       leadData = {
         id: scrapedLead.id,
         name: `Permit: ${scrapedLead.permit_number || "Open Data"}`,

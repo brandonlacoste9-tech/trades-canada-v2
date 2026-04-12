@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import LeadCard from "./LeadCard";
 import { 
+  Crown,
   Plus, 
   Search, 
   SlidersHorizontal,
@@ -28,19 +30,24 @@ interface LeadData {
   description?: string;
   createdAt: string | Date;
   isUnlocked?: boolean;
+  isMock?: boolean;
   status?: string;
   name?: string;
   email?: string;
   phone?: string;
 }
 
+export type UserTier = "free" | "starter" | "pro" | "elite";
+
 interface LeadMarketplaceProps {
   initialLeads?: LeadData[];
   lang: Lang;
+  userTier?: UserTier;
 }
 
-const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], lang }) => {
+const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], lang, userTier = "free" }) => {
   const t = useTranslations(lang);
+  const isFree = userTier === "free";
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [stats, setStats] = useState({
@@ -74,13 +81,42 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
 
   return (
     <div className="space-y-10">
+      {/* ── Free Tier Demo Banner ────────────────────────────────────────── */}
+      {isFree && (
+        <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0">
+              <Crown size={20} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">
+                {lang === "en" ? "Demo Mode — Sample Data" : "Mode démo — Données exemples"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "en"
+                  ? "These are demo leads. Subscribe to unlock real homeowner requests and municipal permit data."
+                  : "Ce sont des leads de démonstration. Abonnez-vous pour les vrais leads propriétaires et données de permis."}
+              </p>
+            </div>
+            <Link href={`/${lang}#pricing`} className="btn-amber text-xs shrink-0">
+              {lang === "en" ? "Upgrade" : "Améliorer"}
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-4xl font-black mb-2 flex items-center gap-3">
             {t("marketplace.title")}
-            <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-lg animate-pulse font-bold border border-primary/20">
-              LIVE
+            <span className={cn(
+              "px-2 py-1 text-xs rounded-lg font-bold border",
+              isFree
+                ? "bg-muted/20 text-muted-foreground border-border"
+                : "bg-primary/10 text-primary border-primary/20 animate-pulse"
+            )}>
+              {isFree ? "DEMO" : "LIVE"}
             </span>
           </h1>
           <p className="text-muted-foreground text-lg">

@@ -43,6 +43,7 @@ interface LeadCardProps {
   phone?: string;
   url?: string;
   lang?: Lang;
+  isMock?: boolean;
 }
 
 interface UnlockedContact {
@@ -76,6 +77,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
   email: initialEmail,
   phone: initialPhone,
   lang = "en",
+  isMock = false,
 }) => {
   const t = useTranslations(lang);
   const [unlocked, setUnlocked] = useState(isUnlocked);
@@ -100,6 +102,16 @@ const LeadCard: React.FC<LeadCardProps> = ({
   const handleUnlock = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (unlocked || loading) return;
+
+    if (isMock) {
+      setError(
+        lang === "en"
+          ? "This is a demo lead. Subscribe to a paid plan to unlock real leads."
+          : "Ceci est un lead démo. Abonnez-vous à un plan payant pour débloquer de vrais leads."
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
 

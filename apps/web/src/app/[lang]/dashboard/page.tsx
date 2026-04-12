@@ -7,8 +7,9 @@ import type { Database } from "@/types/database";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import LeadMarketplace from "@/components/marketplace/LeadMarketplace";
 import SubscriptionSyncBanner from "@/components/dashboard/SubscriptionSyncBanner";
-import { evaluateLeadEligibility } from "@/lib/leadEligibility";
+import { evaluateLeadEligibility, normalizeTier, type ContractorTier } from "@/lib/leadEligibility";
 import { syncUserSubscriptionFromStripe } from "@/lib/stripe-subscription-sync";
+import { getMockLeads } from "@/lib/mockLeads";
 
 interface DashboardPageProps {
   params: Promise<{ lang: string }>;
@@ -60,75 +61,166 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
   type LogRow = Database["public"]["Tables"]["automated_logs"]["Row"];
   type PermitRow = Database["public"]["Tables"]["scraped_inventory"]["Row"];
 
-  // Fetch leads for this contractor
-  const { data: leadsData } = await supabase
-    .from("leads")
-    .select("*")
-    .or(`contractor_id.eq.${user.id},contractor_id.is.null`)
-    .order("created_at", { ascending: false })
-    .limit(50);
-  const leads = leadsData as LeadRow[] | null;
-
+  // ── Fetch profile & determine tier ─────────────────────────────────────
   const { data: profileData } = await supabase
     .from("profiles")
     .select("subscription_tier, city, services")
     .eq("id", user.id)
     .single();
 
-  // Fetch automation logs
-  const { data: logsData } = await supabase
-    .from("automated_logs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(5);
-  const logs = logsData as LogRow[] | null;
+  const rawTier = (profileData as { subscription_tier?: string | null } | null)?.subscription_tier;
+  const tier: ContractorTier = rawTier ? normalizeTier(rawTier) : "starter";
+  const isFree = !rawTier || rawTier === "" || rawTier === "free";
+  const isPaid = !isFree; // starter, engine/pro, dominator/elite
+  const isElite = tier === "elite";
 
-  const { data: permitsData } = await supabase
-    .from("scraped_inventory")
-    .select("*")
-    .order("scraped_at", { ascending: false })
-    .limit(6);
-  const permits = (permitsData ?? []) as PermitRow[];
+  // ── TIER-GATED DATA FETCHING ───────────────────────────────────────────
+  // Free tier: mock data only.  Starter+: real leads.  Elite: leads + permits.
 
-  // Fetch this contractor's unlocked lead IDs
-  // lead_unlocks is a new table not yet in generated types — cast to known shape
-  const { data: unlocksRaw } = await supabase
-    .from("lead_unlocks")
-    .select("lead_id")
-    .eq("contractor_id", user.id);
-  const unlockedLeadIds = new Set(
-    ((unlocksRaw ?? []) as { lead_id: string }[]).map((u) => u.lead_id)
-  );
+  let myLeads: LeadRow[] = [];
+  let marketLeads: LeadRow[] = [];
+  let permits: PermitRow[] = [];
+  let logs: LogRow[] = [];
+  let unlockedLeadIds = new Set<string>();
 
-  const myLeads = leads?.filter((l) => l.contractor_id === user.id) ?? [];
-  const marketLeadsRaw = leads?.filter((lead) => lead.contractor_id === null) ?? [];
-  const marketLeads = profileData
-    ? marketLeadsRaw.filter((lead) => evaluateLeadEligibility(lead, profileData).eligible)
-    : marketLeadsRaw;
+  if (isPaid) {
+    // ── Real leads (Starter, Pro, Elite) ──────────────────────────────
+    const { data: leadsData } = await supabase
+      .from("leads")
+      .select("*")
+      .or(`contractor_id.eq.${user.id},contractor_id.is.null`)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const leads = leadsData as LeadRow[] | null;
 
-  const aiActionMap: Record<string, "email_now" | "send_booking_link" | "nurture"> = {};
-  for (const log of logs ?? []) {
-    if (log.event_type !== "lead.ai_qualified" || !log.lead_id || !log.metadata) continue;
-    if (typeof log.metadata !== "object" || Array.isArray(log.metadata)) continue;
-    const nextActionRaw = (log.metadata as Record<string, unknown>).next_action;
-    if (
-      nextActionRaw === "email_now" ||
-      nextActionRaw === "send_booking_link" ||
-      nextActionRaw === "nurture"
-    ) {
-      aiActionMap[log.lead_id] = nextActionRaw;
-    }
+    myLeads = leads?.filter((l) => l.contractor_id === user.id) ?? [];
+    const marketLeadsRaw = leads?.filter((lead) => lead.contractor_id === null) ?? [];
+    marketLeads = profileData
+      ? marketLeadsRaw.filter((lead) => evaluateLeadEligibility(lead, profileData).eligible)
+      : marketLeadsRaw;
+
+    // ── Municipal permits (Starter+ can view, Elite gets enrichment) ──
+    const { data: permitsData } = await supabase
+      .from("scraped_inventory")
+      .select("*")
+      .order("scraped_at", { ascending: false })
+      .limit(6);
+    permits = (permitsData ?? []) as PermitRow[];
+
+    // ── Unlocks ──
+    const { data: unlocksRaw } = await supabase
+      .from("lead_unlocks")
+      .select("lead_id")
+      .eq("contractor_id", user.id);
+    unlockedLeadIds = new Set(
+      ((unlocksRaw ?? []) as { lead_id: string }[]).map((u) => u.lead_id)
+    );
+
+    // ── Automation logs ──
+    const { data: logsData } = await supabase
+      .from("automated_logs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    logs = (logsData as LogRow[] | null) ?? [];
   }
 
+  // ── Build lead list for marketplace ────────────────────────────────────
+  type LeadData = {
+    id: string;
+    title: string;
+    source: string;
+    location: string;
+    projectType: string;
+    value: string;
+    description: string;
+    createdAt: string;
+    isUnlocked: boolean;
+    isMock?: boolean;
+    status?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    url?: string;
+  };
+
+  let displayLeads: LeadData[];
+
+  if (isFree) {
+    // ── FREE TIER: Mock data only ────────────────────────────────────
+    displayLeads = getMockLeads(l);
+  } else {
+    // ── PAID TIERS: Real data ────────────────────────────────────────
+    const realLeads: LeadData[] = [
+      ...myLeads.map(le => ({
+        id: le.id,
+        title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
+        source: l === 'en' ? "Direct Request" : "Demande directe",
+        location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+        projectType: le.project_type,
+        value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
+        description: le.message || "",
+        createdAt: le.created_at,
+        isUnlocked: true,
+        status: le.status,
+        name: le.name,
+        email: le.email,
+        phone: le.phone ?? undefined
+      })),
+      ...marketLeads.map(le => ({
+        id: le.id,
+        title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
+        source: l === 'en' ? "Direct Request" : "Demande directe",
+        location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+        projectType: le.project_type,
+        value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
+        description: le.message || "",
+        createdAt: le.created_at,
+        isUnlocked: unlockedLeadIds.has(le.id),
+        name: unlockedLeadIds.has(le.id) ? le.name : undefined,
+        email: unlockedLeadIds.has(le.id) && isElite ? le.email : undefined,
+        phone: unlockedLeadIds.has(le.id) && isElite ? (le.phone ?? undefined) : undefined,
+      })),
+      ...permits.map(p => {
+        const isUnlocked = unlockedLeadIds.has(p.id);
+        let phoneOption = undefined;
+        let nameOption = undefined;
+        if (isUnlocked && isElite) {
+          phoneOption = `(Apollo Enriched)`;
+          nameOption = `Verified Owner (Permit ${p.permit_number || "N/A"})`;
+        } else if (isUnlocked) {
+          nameOption = `Permit: ${p.permit_number || "Open Data"}`;
+        }
+        return {
+          id: p.id,
+          title: p.title,
+          source: l === 'en' ? "Municipal Data" : "Données municipales",
+          location: p.location || p.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+          projectType: p.project_type || 'general',
+          value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
+          description: p.description || "",
+          createdAt: p.scraped_at,
+          isUnlocked,
+          name: nameOption,
+          url: isUnlocked ? p.url : undefined,
+          phone: phoneOption
+        };
+      })
+    ];
+
+    displayLeads = realLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────
   const stats = {
-    total: myLeads.length,
-    newThisWeek: myLeads.filter((l) => {
+    total: isFree ? 0 : myLeads.length,
+    newThisWeek: isFree ? 0 : myLeads.filter((l) => {
       const d = new Date(l.created_at);
       const now = new Date();
       return (now.getTime() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
     }).length,
-    converted: myLeads.filter((l) => l.status === "converted").length,
-    revenue: myLeads.filter((l) => l.status === "converted").length * 8500,
+    converted: isFree ? 0 : myLeads.filter((l) => l.status === "converted").length,
+    revenue: isFree ? 0 : myLeads.filter((l) => l.status === "converted").length * 8500,
   };
 
   return (
@@ -137,7 +229,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
       <SubscriptionSyncBanner
         lang={l}
         justPaid={justPaid}
-        currentTier={(profileData as { subscription_tier?: string | null } | null)?.subscription_tier ?? null}
+        currentTier={rawTier ?? null}
       />
 
       <div>
@@ -151,6 +243,31 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
 
       <DashboardStats stats={stats} lang={l} />
 
+      {/* ── Free Tier Upgrade Banner ─────────────────────────────────────── */}
+      {isFree && (
+        <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-6">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="font-display font-bold text-lg text-foreground mb-1">
+                {l === "en" ? "You're viewing demo data" : "Vous voyez des données démo"}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {l === "en"
+                  ? "Upgrade to a paid plan to access real homeowner leads, municipal permit data, and AI-powered lead scoring."
+                  : "Passez à un plan payant pour accéder aux vrais leads propriétaires, aux données de permis municipaux et au scoring de leads par IA."}
+              </p>
+            </div>
+            <a
+              href={`/${l}#pricing`}
+              className="btn-amber shrink-0 text-sm"
+            >
+              {l === "en" ? "View Plans" : "Voir les plans"}
+            </a>
+          </div>
+        </div>
+      )}
+
       <div className="glass-card cyber-border rounded-xl p-5">
         <h3 className="font-display font-semibold text-sm text-foreground mb-4">
           {l === "en" ? "Lead Sources" : "Sources de leads"}
@@ -161,23 +278,25 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
               {l === "en" ? "Direct Network Leads" : "Leads directs du réseau"}
             </p>
             <p className="font-display text-2xl font-bold text-foreground mt-2">
-              {myLeads.length + marketLeads.length}
+              {isFree ? "—" : myLeads.length + marketLeads.length}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {l === "en"
-                ? "Captured from homeowner form submissions."
-                : "Capturés via les soumissions du formulaire propriétaire."}
+              {isFree
+                ? (l === "en" ? "Upgrade to see real leads." : "Améliorez pour voir les vrais leads.")
+                : (l === "en" ? "Captured from homeowner form submissions." : "Capturés via les soumissions du formulaire propriétaire.")}
             </p>
           </div>
           <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">
               {l === "en" ? "Firecrawl Market Signals" : "Signaux marché Firecrawl"}
             </p>
-            <p className="font-display text-2xl font-bold text-foreground mt-2">{permits.length}</p>
+            <p className="font-display text-2xl font-bold text-foreground mt-2">
+              {isFree ? "—" : permits.length}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {l === "en"
-                ? "Latest permit opportunities from scraped inventory."
-                : "Dernières opportunités permis depuis l'inventaire scrappé."}
+              {isFree
+                ? (l === "en" ? "Upgrade to see permit intel." : "Améliorez pour l'intelligence permis.")
+                : (l === "en" ? "Latest permit opportunities from scraped inventory." : "Dernières opportunités permis depuis l'inventaire scrappé.")}
             </p>
           </div>
         </div>
@@ -185,65 +304,10 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div className="xl:col-span-3">
-          <LeadMarketplace 
-            lang={l} 
-            initialLeads={[
-              ...myLeads.map(le => ({
-                id: le.id,
-                title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
-                source: l === 'en' ? "Direct Request" : "Demande directe",
-                location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
-                projectType: le.project_type,
-                value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
-                description: le.message || "",
-                createdAt: le.created_at,
-                isUnlocked: true,
-                status: le.status,
-                name: le.name,
-                email: le.email,
-                phone: le.phone ?? undefined
-              })),
-              ...marketLeads.map(le => ({
-                id: le.id,
-                title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
-                source: l === 'en' ? "Direct Request" : "Demande directe",
-                location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
-                projectType: le.project_type,
-                value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
-                description: le.message || "",
-                createdAt: le.created_at,
-                isUnlocked: unlockedLeadIds.has(le.id),
-                name: unlockedLeadIds.has(le.id) ? le.name : undefined,
-                email: unlockedLeadIds.has(le.id) ? le.email : undefined,
-                phone: unlockedLeadIds.has(le.id) ? (le.phone ?? undefined) : undefined,
-              })),
-              ...permits.map(p => {
-                const isUnlocked = unlockedLeadIds.has(p.id);
-                let phoneOption = undefined;
-                let nameOption = undefined;
-                const userTier = (profileData as { subscription_tier?: string | null } | null)?.subscription_tier;
-                if (isUnlocked && userTier === "elite") {
-                  phoneOption = `(Apollo Enriched)`;
-                  nameOption = `Verified Owner (Permit ${p.permit_number || "N/A"})`;
-                } else if (isUnlocked) {
-                  nameOption = `Permit: ${p.permit_number || "Open Data"}`;
-                }
-                return {
-                  id: p.id,
-                  title: p.title,
-                  source: l === 'en' ? "Municipal Data" : "Données municipales",
-                  location: p.location || p.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
-                  projectType: p.project_type || 'general',
-                  value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
-                  description: p.description || "",
-                  createdAt: p.scraped_at,
-                  isUnlocked,
-                  name: nameOption,
-                  url: isUnlocked ? p.url : undefined,
-                  phone: phoneOption
-                };
-              })
-            ].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())}
+          <LeadMarketplace
+            lang={l}
+            userTier={isFree ? "free" : tier}
+            initialLeads={displayLeads}
           />
         </div>
 
