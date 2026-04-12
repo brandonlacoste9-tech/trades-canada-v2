@@ -304,7 +304,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
               <AlertCircle size={13} className="shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
-            {error.includes("limit") && (
+            {(error.includes("limit") || error.includes("UPGRADE")) && (
               <a
                 href={`/${lang}/settings?tab=billing`}
                 onClick={(e) => e.stopPropagation()}
@@ -559,7 +559,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
                       <AlertCircle size={13} className="shrink-0 mt-0.5" />
                       <span>{error}</span>
                     </div>
-                    {error.includes("limit") && (
+                    {(error.includes("limit") || error.includes("UPGRADE")) && (
                       <a
                         href={`/${lang}/settings?tab=billing`}
                         className="btn-outline-amber text-[10px] py-1.5 h-auto w-fit font-bold uppercase tracking-widest border-2"

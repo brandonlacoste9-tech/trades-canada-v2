@@ -21,7 +21,7 @@ const PRICE_IDS = {
 const plans = [
   {
     nameKey: "pricing.starter.name" as const,
-    price: "$199",
+    price: "$149",
     priceId: PRICE_IDS.starter,
     features: {
       en: [
@@ -44,7 +44,7 @@ const plans = [
   },
   {
     nameKey: "pricing.engine.name" as const,
-    price: "$399",
+    price: "$349",
     priceId: PRICE_IDS.engine,
     features: {
       en: [

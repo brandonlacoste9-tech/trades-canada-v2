@@ -84,16 +84,16 @@ Lead details:
 Scoring guide: phone provided +15, city known +10, non-other trade +10, urgent trade (hvac/roofing/electrical) +5. Base 45.`;
 
   try {
-    // Try OpenAI Responses API (gpt-4.1-mini)
-    const res = await fetch("https://api.openai.com/v1/responses", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        input: prompt,
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
         temperature: 0.1,
       }),
     });
@@ -103,16 +103,8 @@ Scoring guide: phone provided +15, city known +10, non-other trade +10, urgent t
       return heuristicQualification(input);
     }
 
-    const data = (await res.json()) as {
-      output_text?: string;
-      output?: Array<{ type: string; text?: string; content?: Array<{ type: string; text?: string }> }>;
-    };
-
-    // Handle both Responses API formats
-    const rawText: string | undefined =
-      data.output_text ??
-      data.output?.find((o) => o.type === "message")?.content?.find((c) => c.type === "output_text")?.text ??
-      data.output?.find((o) => o.type === "message")?.text;
+    const data = await res.json();
+    const rawText = data.choices?.[0]?.message?.content;
 
     if (!rawText) return heuristicQualification(input);
 

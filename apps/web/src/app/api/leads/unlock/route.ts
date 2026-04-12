@@ -52,14 +52,18 @@ export async function POST(req: NextRequest) {
   }
 
   // 4. Fetch subscription plan to get lead_limit
-  const tier = profile.subscription_tier ?? "starter";
+  const rawTier = profile.subscription_tier ?? "starter";
   const { data: plan } = await admin
     .from("subscription_plans")
     .select("lead_limit")
-    .eq("id", tier)
+    .eq("id", rawTier)
     .single();
 
   const leadLimit: number | null = plan?.lead_limit ?? null;
+
+  // Normalize tier for logic checks
+  const { normalizeTier } = await import("@/lib/leadEligibility");
+  const tier = normalizeTier(rawTier);
 
   // 5. If the plan has a cap, count this contractor's monthly unlocks
   if (leadLimit !== null) {
@@ -190,17 +194,26 @@ export async function POST(req: NextRequest) {
         let enrichedPhone: string | null = null;
         let enrichedEmail: string | null = null;
 
-        if (apolloKey && scrapedLead.city) {
+        if (apolloKey && (scrapedLead.city || scrapedLead.title)) {
           try {
-            // Step 1: Search Apollo for people in the permit's city
+            // Refined Apollo search:
+            // If the title looks like a company name (often is in permits), use organization name
+            // Otherwise use city-based people search
+            const searchParams: Record<string, any> = {
+              per_page: 1,
+              page: 1,
+            };
+
+            if (scrapedLead.title && scrapedLead.title.length > 5) {
+              searchParams.q_organization_name = scrapedLead.title;
+            } else if (scrapedLead.city) {
+              searchParams.person_locations = [scrapedLead.city];
+            }
+
             const searchRes = await fetch("https://api.apollo.io/api/v1/mixed_people/api_search", {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-api-key": apolloKey },
-              body: JSON.stringify({
-                person_locations: [scrapedLead.city],
-                per_page: 3,
-                page: 1,
-              }),
+              body: JSON.stringify(searchParams),
             });
 
             if (searchRes.ok) {
@@ -210,7 +223,7 @@ export async function POST(req: NextRequest) {
               const topMatch = searchData.people?.[0];
 
               if (topMatch?.id) {
-                // Step 2: Enrich the top match to get phone/email
+                // Step 2: Enrich the top match
                 const enrichRes = await fetch("https://api.apollo.io/api/v1/people/match", {
                   method: "POST",
                   headers: { "Content-Type": "application/json", "x-api-key": apolloKey },
@@ -237,15 +250,15 @@ export async function POST(req: NextRequest) {
               }
             }
           } catch (apolloErr) {
-            console.warn("[unlock] Apollo enrichment failed, falling back:", apolloErr instanceof Error ? apolloErr.message : apolloErr);
+            console.warn("[unlock] Apollo enrichment failed:", apolloErr instanceof Error ? apolloErr.message : apolloErr);
           }
         }
 
-        // Apply enriched data or graceful fallback
-        leadData.name = enrichedName
-          ? `${enrichedName} (Permit ${scrapedLead.permit_number || "N/A"})`
-          : `Verified Owner (Permit ${scrapedLead.permit_number || "N/A"})`;
-        leadData.phone = enrichedPhone ? `${enrichedPhone} (Apollo Verified)` : null;
+        // Apply enriched data
+        if (enrichedName) {
+           leadData.name = `${enrichedName} (${scrapedLead.title || "Permit Owner"})`;
+        }
+        leadData.phone = enrichedPhone ? `${enrichedPhone} (Verified)` : null;
         if (enrichedEmail) {
           (leadData as Record<string, unknown>).email = enrichedEmail;
         }

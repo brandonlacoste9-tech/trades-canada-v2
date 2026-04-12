@@ -201,7 +201,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
                 status: le.status,
                 name: le.name,
                 email: le.email,
-                phone: le.phone
+                phone: le.phone ?? undefined
               })),
               ...marketLeads.map(le => ({
                 id: le.id,
@@ -215,13 +215,14 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
                 isUnlocked: unlockedLeadIds.has(le.id),
                 name: unlockedLeadIds.has(le.id) ? le.name : undefined,
                 email: unlockedLeadIds.has(le.id) ? le.email : undefined,
-                phone: unlockedLeadIds.has(le.id) ? le.phone : undefined,
+                phone: unlockedLeadIds.has(le.id) ? (le.phone ?? undefined) : undefined,
               })),
               ...permits.map(p => {
                 const isUnlocked = unlockedLeadIds.has(p.id);
                 let phoneOption = undefined;
                 let nameOption = undefined;
-                if (isUnlocked && profileData?.subscription_tier === "elite") {
+                const userTier = (profileData as any)?.subscription_tier;
+                if (isUnlocked && userTier === "elite") {
                   phoneOption = `(Apollo Enriched)`;
                   nameOption = `Verified Owner (Permit ${p.permit_number || "N/A"})`;
                 } else if (isUnlocked) {
