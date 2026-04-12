@@ -221,7 +221,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
                 const isUnlocked = unlockedLeadIds.has(p.id);
                 let phoneOption = undefined;
                 let nameOption = undefined;
-                const userTier = (profileData as any)?.subscription_tier;
+                const userTier = (profileData as { subscription_tier?: string | null } | null)?.subscription_tier;
                 if (isUnlocked && userTier === "elite") {
                   phoneOption = `(Apollo Enriched)`;
                   nameOption = `Verified Owner (Permit ${p.permit_number || "N/A"})`;

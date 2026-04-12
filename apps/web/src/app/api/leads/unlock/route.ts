@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
             // Refined Apollo search:
             // If the title looks like a company name (often is in permits), use organization name
             // Otherwise use city-based people search
-            const searchParams: Record<string, any> = {
+            const searchParams: Record<string, unknown> = {
               per_page: 1,
               page: 1,
             };
