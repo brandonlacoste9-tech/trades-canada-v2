@@ -7,11 +7,13 @@ type LeadInput = {
   city?: string | null;
   projectType: ProjectType;
   language: PreferredLanguage;
+  permitDescription?: string | null; // Added for deeper context (Opportunity Analysis)
 };
 
 export type LeadQualification = {
   score: number;
   summary: string;
+  strategy?: string; // High-value advice for the contractor
   nextAction: "email_now" | "send_booking_link" | "nurture";
   provider: "openai" | "heuristic";
 };
@@ -26,6 +28,10 @@ function heuristicQualification(input: LeadInput): LeadQualification {
   if (input.phone) score += 15;
   if (input.city) score += 10;
   if (input.projectType !== "other") score += 10;
+  
+  // Complexity bonus for descriptions
+  if (input.permitDescription && input.permitDescription.length > 50) score += 10;
+
   if (
     input.projectType === "roofing" ||
     input.projectType === "hvac" ||
@@ -46,10 +52,10 @@ function heuristicQualification(input: LeadInput): LeadQualification {
     input.language === "fr"
       ? `Lead auto-qualifié (${normalizedScore}/100). Projet: ${input.projectType}. ${
           input.phone ? "Téléphone fourni." : "Pas de téléphone."
-        } Action recommandée: ${nextAction}.`
+        }`
       : `Auto-qualified lead (${normalizedScore}/100). Project: ${input.projectType}. ${
           input.phone ? "Phone provided." : "No phone."
-        } Recommended action: ${nextAction}.`;
+        }`;
 
   return { score: normalizedScore, summary, nextAction, provider: "heuristic" };
 }
@@ -70,18 +76,18 @@ export async function qualifyLead(input: LeadInput): Promise<LeadQualification> 
   const prompt = `You are qualifying a contractor-service lead for the Canadian trades market.
 Return ONLY strict JSON with these exact keys:
 - score (integer 0-100)
-- summary (string, max 220 chars, bilingual context: language is "${input.language}")
+- summary (string, max 150 chars, bilingual: "${input.language}")
+- strategy (string, max 300 chars, specific advice on HOW to win this job based on details)
 - nextAction (exactly one of: "email_now", "send_booking_link", "nurture")
 
 Lead details:
 - name: ${input.name}
-- email: ${input.email}
-- phone: ${input.phone ?? "none"}
 - city: ${input.city ?? "unknown"}
 - projectType: ${input.projectType}
+- permitDetails: ${input.permitDescription ?? "Standard homeowner request"}
 - language: ${input.language}
 
-Scoring guide: phone provided +15, city known +10, non-other trade +10, urgent trade (hvac/roofing/electrical) +5. Base 45.`;
+Scoring checklist: phone provided +15, permit depth +10, urgent trade +10. Base 45.`;
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -99,23 +105,25 @@ Scoring guide: phone provided +15, city known +10, non-other trade +10, urgent t
     });
 
     if (!res.ok) {
-      console.warn(`[leadQualification] OpenAI API ${res.status} — falling back to heuristic`);
+      console.warn(`[leadQualification] OpenAI API error — falling back`);
       return heuristicQualification(input);
     }
 
     const data = await res.json();
     const rawText = data.choices?.[0]?.message?.content;
-
     if (!rawText) return heuristicQualification(input);
 
     const parsed = JSON.parse(extractJson(rawText)) as {
       score?: number;
       summary?: string;
+      strategy?: string;
       nextAction?: "email_now" | "send_booking_link" | "nurture";
     };
 
     const score = clamp(Math.round(parsed.score ?? 50), 0, 100);
-    const summary = (parsed.summary ?? "").slice(0, 220);
+    const summary = (parsed.summary ?? "").slice(0, 200);
+    const strategy = parsed.strategy || undefined;
+    
     const validActions = new Set(["email_now", "send_booking_link", "nurture"]);
     const nextAction: LeadQualification["nextAction"] = validActions.has(parsed.nextAction ?? "")
       ? (parsed.nextAction as LeadQualification["nextAction"])
@@ -123,11 +131,9 @@ Scoring guide: phone provided +15, city known +10, non-other trade +10, urgent t
       ? "email_now"
       : "send_booking_link";
 
-    if (!summary) return heuristicQualification(input);
-
-    return { score, summary, nextAction, provider: "openai" };
+    return { score, summary, strategy, nextAction, provider: "openai" };
   } catch (err) {
-    console.warn("[leadQualification] Parse/fetch error — using heuristic:", err);
+    console.warn("[leadQualification] Error — using fallback:", err);
     return heuristicQualification(input);
   }
 }

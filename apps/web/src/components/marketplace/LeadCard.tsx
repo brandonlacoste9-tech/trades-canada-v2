@@ -564,30 +564,56 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   </motion.div>
                 )}
 
-                {/* Intel box */}
-                <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10 space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                    {lang === "en" ? "AI Market Analysis" : "Analyse de Marché IA"}
-                  </p>
-                  <div className="flex items-start gap-3">
-                    <span className="px-2 py-0.5 rounded-md bg-green-500/20 text-green-400 text-[9px] font-black uppercase shrink-0 mt-0.5">Alpha</span>
-                    <p className="text-sm text-foreground/75 leading-relaxed font-medium">
-                      {lang === "en"
-                        ? "Our AI detected this property recently initiated structural planning. High probability of immediate technical requirements."
-                        : "Notre IA a détecté que cette propriété a récemment lancé une planification structurelle. Forte probabilité de besoins techniques immédiats."}
+                {/* AI Victory Plan — Elite Exclusive */}
+                {unlocked && (
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 space-y-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                       <Zap size={60} className="text-amber-500" />
+                    </div>
+                    
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400 flex items-center gap-2">
+                      <Zap size={13} fill="currentColor" />
+                      {lang === "en" ? "Deep Intelligence: Victory Plan" : "Intelligence Profonde: Plan de Victoire"}
                     </p>
+
+                    <div className="space-y-4 relative z-10">
+                      <div>
+                         <p className="text-xs font-bold text-foreground mb-1 italic">
+                           {lang === "en" ? "Economic Opportunity" : "Opportunité Économique"}
+                         </p>
+                         <p className="text-sm text-muted-foreground leading-relaxed">
+                            {lang === "en" 
+                              ? "Targeting a ~15-20% margin enhancement by bundling localized supply chain data with this property's specific permit profile."
+                              : "Ciblage d'une amélioration de marge de ~15-20% en regroupant les données de la chaîne d'approvisionnement locale avec le profil de permis spécifique de cette propriété."}
+                         </p>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                         <p className="text-[10px] uppercase font-black text-amber-400/60 mb-2">
+                           {lang === "en" ? "AI Strategic Advice" : "Conseil Stratégique IA"}
+                         </p>
+                         <p className="text-sm font-medium text-foreground leading-relaxed">
+                           {lang === "en"
+                             ? "Be the first to mention the municipal planning update (Permit pending). Emphasize reliability and immediate crew availability to secure the contract before competitors finish their research."
+                             : "Soyez le premier à mentionner la mise à jour de la planification municipale (permis en attente). Mettez l'accent sur la fiabilité et la disponibilité immédiate de l'équipe pour décrocher le contrat avant que les concurrents n'aient terminé leurs recherches."}
+                         </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-amber-500/10">
+                       <span className="text-[9px] font-black uppercase tracking-widest text-amber-500/50">
+                         Powered by Trades-Canada AI Engine v4.0
+                       </span>
+                       <div className="flex -space-x-1">
+                          {[1,2,3].map(i => (
+                            <div key={i} className="h-5 w-5 rounded-full border-2 border-card bg-amber-500/20 flex items-center justify-center">
+                               <ShieldCheck size={10} className="text-amber-500" />
+                            </div>
+                          ))}
+                       </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-5 pt-1">
-                    <span className="flex items-center gap-1.5 text-xs font-black text-foreground/70">
-                      <ShieldCheck size={13} className="text-blue-400" />
-                      {lang === "en" ? "Double-Verified" : "Doublement vérifié"}
-                    </span>
-                    <span className="flex items-center gap-1.5 text-xs font-black text-foreground/70">
-                      <Zap size={13} className="text-amber-400" />
-                      {lang === "en" ? "Exclusive Feed" : "Source exclusive"}
-                    </span>
-                  </div>
-                </div>
+                )}
 
                 {/* Privacy notice */}
                 <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-4">
