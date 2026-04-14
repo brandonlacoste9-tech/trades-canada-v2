@@ -74,6 +74,9 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
   const isFree = (!rawTier || rawTier === "" || rawTier === "free") && !testAccess;
   const isPaid = !isFree; // starter, engine/pro, dominator/elite
   const isElite = tier === "elite" || testAccess;
+  const canSeeMunicipalData = isPaid;
+  // Tier model requested: free => mock, tier 2 => municipal only, tier 3 => all data.
+  const canSeeAllData = isElite;
 
   // ── TIER-GATED DATA FETCHING ───────────────────────────────────────────
   // Free tier: mock data only.  Starter+: real leads.  Elite: leads + permits.
@@ -85,28 +88,32 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
   let unlockedLeadIds = new Set<string>();
 
   if (isPaid) {
-    // ── Real leads (Starter, Pro, Elite) ──────────────────────────────
-    const { data: leadsData } = await supabase
-      .from("leads")
-      .select("*")
-      .or(`contractor_id.eq.${user.id},contractor_id.is.null`)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    const leads = leadsData as LeadRow[] | null;
+    // ── Tier 3: all data (direct network + municipal) ────────────────
+    if (canSeeAllData) {
+      const { data: leadsData } = await supabase
+        .from("leads")
+        .select("*")
+        .or(`contractor_id.eq.${user.id},contractor_id.is.null`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const leads = leadsData as LeadRow[] | null;
 
-    myLeads = leads?.filter((l) => l.contractor_id === user.id) ?? [];
-    const marketLeadsRaw = leads?.filter((lead) => lead.contractor_id === null) ?? [];
-    marketLeads = profileData
-      ? marketLeadsRaw.filter((lead) => evaluateLeadEligibility(lead, profileData).eligible)
-      : marketLeadsRaw;
+      myLeads = leads?.filter((l) => l.contractor_id === user.id) ?? [];
+      const marketLeadsRaw = leads?.filter((lead) => lead.contractor_id === null) ?? [];
+      marketLeads = profileData
+        ? marketLeadsRaw.filter((lead) => evaluateLeadEligibility(lead, profileData).eligible)
+        : marketLeadsRaw;
+    }
 
-    // ── Municipal permits (Starter+ can view, Elite gets enrichment) ──
-    const { data: permitsData } = await supabase
-      .from("scraped_inventory")
-      .select("*")
-      .order("scraped_at", { ascending: false })
-      .limit(6);
-    permits = (permitsData ?? []) as PermitRow[];
+    // ── Tier 2+: municipal permit intelligence ────────────────────────
+    if (canSeeMunicipalData) {
+      const { data: permitsData } = await supabase
+        .from("scraped_inventory")
+        .select("*")
+        .order("scraped_at", { ascending: false })
+        .limit(20);
+      permits = (permitsData ?? []) as PermitRow[];
+    }
 
     // ── Unlocks ──
     const { data: unlocksRaw } = await supabase
@@ -152,62 +159,75 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
     displayLeads = getMockLeads(l);
   } else {
     // ── PAID TIERS: Real data ────────────────────────────────────────
-    const realLeads: LeadData[] = [
-      ...myLeads.map(le => ({
-        id: le.id,
-        title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
-        source: l === 'en' ? "Direct Request" : "Demande directe",
-        location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
-        projectType: le.project_type,
-        value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
-        description: le.message || "",
-        createdAt: le.created_at,
-        isUnlocked: true,
-        status: le.status,
-        name: le.name,
-        email: le.email,
-        phone: le.phone ?? undefined
-      })),
-      ...marketLeads.map(le => ({
-        id: le.id,
-        title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
-        source: l === 'en' ? "Direct Request" : "Demande directe",
-        location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
-        projectType: le.project_type,
-        value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
-        description: le.message || "",
-        createdAt: le.created_at,
-        isUnlocked: unlockedLeadIds.has(le.id),
-        name: unlockedLeadIds.has(le.id) ? le.name : undefined,
-        email: unlockedLeadIds.has(le.id) && isElite ? le.email : undefined,
-        phone: unlockedLeadIds.has(le.id) && isElite ? (le.phone ?? undefined) : undefined,
-      })),
-      ...permits.map(p => {
-        const isUnlocked = unlockedLeadIds.has(p.id);
-        let phoneOption = undefined;
-        let nameOption = undefined;
-        if (isUnlocked && isElite) {
-          phoneOption = `(Apollo Enriched)`;
-          nameOption = `Verified Owner (Permit ${p.permit_number || "N/A"})`;
-        } else if (isUnlocked) {
-          nameOption = `Permit: ${p.permit_number || "Open Data"}`;
-        }
-        return {
-          id: p.id,
-          title: p.title,
-          source: l === 'en' ? "Municipal Data" : "Données municipales",
-          location: p.location || p.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
-          projectType: p.project_type || 'general',
-          value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
-          description: p.description || "",
-          createdAt: p.scraped_at,
-          isUnlocked,
-          name: nameOption,
-          url: isUnlocked ? (p.url ?? undefined) : undefined,
-          phone: phoneOption
-        };
-      })
-    ];
+    const allDataLeads: LeadData[] = canSeeAllData
+      ? [
+          ...myLeads.map((le) => ({
+            id: le.id,
+            title: le.message
+              ? le.message.length > 50
+                ? `${le.message.substring(0, 50)}...`
+                : le.message
+              : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
+            source: l === "en" ? "Direct Request" : "Demande directe",
+            location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+            projectType: le.project_type,
+            value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
+            description: le.message || "",
+            createdAt: le.created_at,
+            isUnlocked: true,
+            status: le.status,
+            name: le.name,
+            email: le.email,
+            phone: le.phone ?? undefined,
+          })),
+          ...marketLeads.map((le) => ({
+            id: le.id,
+            title: le.message
+              ? le.message.length > 50
+                ? `${le.message.substring(0, 50)}...`
+                : le.message
+              : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
+            source: l === "en" ? "Direct Request" : "Demande directe",
+            location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+            projectType: le.project_type,
+            value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
+            description: le.message || "",
+            createdAt: le.created_at,
+            isUnlocked: unlockedLeadIds.has(le.id),
+            name: unlockedLeadIds.has(le.id) ? le.name : undefined,
+            email: unlockedLeadIds.has(le.id) && isElite ? le.email : undefined,
+            phone: unlockedLeadIds.has(le.id) && isElite ? le.phone ?? undefined : undefined,
+          })),
+        ]
+      : [];
+
+    const municipalLeads: LeadData[] = permits.map((p) => {
+      const isUnlocked = unlockedLeadIds.has(p.id);
+      let phoneOption = undefined;
+      let nameOption = undefined;
+      if (isUnlocked && isElite) {
+        phoneOption = "(Apollo Enriched)";
+        nameOption = `Verified Owner (Permit ${p.permit_number || "N/A"})`;
+      } else if (isUnlocked) {
+        nameOption = `Permit: ${p.permit_number || "Open Data"}`;
+      }
+      return {
+        id: p.id,
+        title: p.title,
+        source: l === "en" ? "Municipal Data" : "Données municipales",
+        location: p.location || p.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+        projectType: p.project_type || "general",
+        value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
+        description: p.description || "",
+        createdAt: p.scraped_at,
+        isUnlocked,
+        name: nameOption,
+        url: isUnlocked ? p.url ?? undefined : undefined,
+        phone: phoneOption,
+      };
+    });
+
+    const realLeads: LeadData[] = [...allDataLeads, ...municipalLeads];
 
     displayLeads = realLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
@@ -255,8 +275,8 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
               </p>
               <p className="text-muted-foreground text-sm">
                 {l === "en"
-                  ? "Upgrade to a paid plan to access real homeowner leads, municipal permit data, and AI-powered lead scoring."
-                  : "Passez à un plan payant pour accéder aux vrais leads propriétaires, aux données de permis municipaux et au scoring de leads par IA."}
+                  ? "Upgrade to unlock municipal intelligence (tier 2) and full lead + Apollo enriched data (tier 3)."
+                  : "Passez au niveau supérieur pour débloquer l'intelligence municipale (niveau 2) et les données complètes + enrichissement Apollo (niveau 3)."}
               </p>
             </div>
             <a
@@ -279,12 +299,14 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
               {l === "en" ? "Direct Network Leads" : "Leads directs du réseau"}
             </p>
             <p className="font-display text-2xl font-bold text-foreground mt-2">
-              {isFree ? "—" : myLeads.length + marketLeads.length}
+              {isFree ? "—" : canSeeAllData ? myLeads.length + marketLeads.length : 0}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {isFree
                 ? (l === "en" ? "Upgrade to see real leads." : "Améliorez pour voir les vrais leads.")
-                : (l === "en" ? "Captured from homeowner form submissions." : "Capturés via les soumissions du formulaire propriétaire.")}
+                : canSeeAllData
+                  ? (l === "en" ? "Captured from homeowner form submissions." : "Capturés via les soumissions du formulaire propriétaire.")
+                  : (l === "en" ? "Unlocked on tier 3 (all-data access)." : "Débloqué au niveau 3 (accès toutes données).")}
             </p>
           </div>
           <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
