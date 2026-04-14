@@ -207,7 +207,6 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
         nameOption = nameOption || `Permit: ${p.permit_number || "Open Data"}`;
         // TEASER: Let tier 2 know what they could have if they upgrade
         if (!phoneOption) phoneOption = "[Requires Elite Upgrade]";
-        // @ts-expect-error: emailOption is const but we can't reassign, so we use the object literal below
       }
 
       return {
