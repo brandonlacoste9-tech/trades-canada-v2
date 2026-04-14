@@ -195,12 +195,10 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
     ];
 
     const municipalLeads: LeadData[] = permits.map(p => {
-      // @ts-expect-error: Supabase join types are complex and the spread is safe here
-      const iat = p as any; 
       const isUnlocked = unlockedLeadIds.has(p.id);
-      let phoneOption = iat.enriched_phone || undefined;
-      let nameOption = iat.enriched_name || undefined;
-      const emailOption = iat.enriched_email || undefined;
+      let phoneOption = p.enriched_phone || undefined;
+      let nameOption = p.enriched_name || undefined;
+      const emailOption = p.enriched_email || undefined;
       
       if (isUnlocked && isElite) {
         phoneOption = phoneOption || `(Apollo Enriched)`;
