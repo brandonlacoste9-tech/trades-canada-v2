@@ -254,14 +254,28 @@ const LeadCard: React.FC<LeadCardProps> = ({
                 )}
                 <div className="flex items-center gap-4">
                   {contact.phone && (
-                    <span className="flex items-center gap-1.5 text-xs font-mono text-green-500 font-bold bg-green-500/5 px-2 py-1 rounded-lg border border-green-500/10">
-                      <Phone size={12} /> {contact.phone}
-                    </span>
+                    contact.phone === "[Requires Elite Upgrade]" ? (
+                      <span className="flex items-center gap-1.5 text-[10px] font-black text-amber-500/60 bg-amber-500/5 px-2 py-1 rounded-lg border border-amber-500/10 italic">
+                        <Zap size={10} /> 
+                        <span className="blur-[1px] select-none">555-000-0000</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-xs font-mono text-green-500 font-bold bg-green-500/5 px-2 py-1 rounded-lg border border-green-500/10">
+                        <Phone size={12} /> {contact.phone}
+                      </span>
+                    )
                   )}
                   {contact.email && (
-                    <span className="flex items-center gap-1.5 text-xs font-mono text-blue-500 font-bold bg-blue-500/5 px-2 py-1 rounded-lg border border-blue-500/10">
-                      <Mail size={12} /> {contact.email}
-                    </span>
+                    contact.email === "[Requires Elite Upgrade]" ? (
+                      <span className="flex items-center gap-1.5 text-[10px] font-black text-amber-500/60 bg-amber-500/5 px-2 py-1 rounded-lg border border-amber-500/10 italic">
+                        <Zap size={10} /> 
+                        <span className="blur-[1.5px] select-none">owner@email.com</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-xs font-mono text-blue-500 font-bold bg-blue-500/5 px-2 py-1 rounded-lg border border-blue-500/10">
+                        <Mail size={12} /> {contact.email}
+                      </span>
+                    )
                   )}
                 </div>
                 {contact.url && !contact.phone && !contact.email && (
@@ -486,30 +500,50 @@ const LeadCard: React.FC<LeadCardProps> = ({
                         </div>
                       )}
                       {contact.phone && (
-                        <a
-                          href={`tel:${contact.phone}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20 hover:bg-green-500/15 transition-colors"
-                        >
-                          <Phone size={18} className="text-green-400" />
-                          <div>
-                            <p className="text-[9px] uppercase tracking-widest font-black text-green-400/60">Phone</p>
-                            <p className="font-mono font-bold text-sm">{contact.phone}</p>
+                        contact.phone === "[Requires Elite Upgrade]" ? (
+                          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                            <Zap size={18} className="text-amber-400" />
+                            <div>
+                              <p className="text-[9px] uppercase tracking-widest font-black text-amber-400/60">Phone</p>
+                              <p className="font-mono font-bold text-sm blur-[2px] select-none text-muted-foreground/40">555-000-0000</p>
+                            </div>
                           </div>
-                        </a>
+                        ) : (
+                          <a
+                            href={`tel:${contact.phone}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20 hover:bg-green-500/15 transition-colors"
+                          >
+                            <Phone size={18} className="text-green-400" />
+                            <div>
+                              <p className="text-[9px] uppercase tracking-widest font-black text-green-400/60">Phone</p>
+                              <p className="font-mono font-bold text-sm">{contact.phone}</p>
+                            </div>
+                          </a>
+                        )
                       )}
                       {contact.email && (
-                        <a
-                          href={`mailto:${contact.email}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20 hover:bg-green-500/15 transition-colors"
-                        >
-                          <Mail size={18} className="text-green-400" />
-                          <div>
-                            <p className="text-[9px] uppercase tracking-widest font-black text-green-400/60">Email</p>
-                            <p className="font-mono font-bold text-sm truncate">{contact.email}</p>
+                        contact.email === "[Requires Elite Upgrade]" ? (
+                          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                            <Zap size={18} className="text-amber-400" />
+                            <div>
+                              <p className="text-[9px] uppercase tracking-widest font-black text-amber-400/60">Email</p>
+                              <p className="font-mono font-bold text-sm blur-[3px] select-none text-muted-foreground/40">owner@email.com</p>
+                            </div>
                           </div>
-                        </a>
+                        ) : (
+                          <a
+                            href={`mailto:${contact.email}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20 hover:bg-green-500/15 transition-colors"
+                          >
+                            <Mail size={18} className="text-green-400" />
+                            <div>
+                              <p className="text-[9px] uppercase tracking-widest font-black text-green-400/60">Email</p>
+                              <p className="font-mono font-bold text-sm truncate">{contact.email}</p>
+                            </div>
+                          </a>
+                        )
                       )}
                       {contact.url && (
                         <a

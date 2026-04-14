@@ -205,7 +205,11 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
         nameOption = nameOption || `Verified Owner (Permit ${p.permit_number || "N/A"})`;
       } else if (isUnlocked) {
         nameOption = nameOption || `Permit: ${p.permit_number || "Open Data"}`;
+        // TEASER: Let tier 2 know what they could have if they upgrade
+        if (!phoneOption) phoneOption = "[Requires Elite Upgrade]";
+        // @ts-expect-error: emailOption is const but we can't reassign, so we use the object literal below
       }
+
       return {
         id: p.id,
         title: p.title,
@@ -219,7 +223,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
         name: nameOption,
         url: isUnlocked ? (p.url ?? undefined) : undefined,
         phone: phoneOption,
-        email: emailOption
+        email: (isUnlocked && !isElite && !emailOption) ? "[Requires Elite Upgrade]" : emailOption
       };
     });
 
