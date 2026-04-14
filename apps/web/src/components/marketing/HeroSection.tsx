@@ -87,7 +87,7 @@ export default function HeroSection({ lang }: HeroSectionProps) {
 
           {/* CTAs */}
           <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Link href={`/${lang}/booking`} className="btn-amber text-base px-8 py-4 w-full sm:w-auto">
+            <Link href={`/${lang}#pricing`} className="btn-amber text-base px-8 py-4 w-full sm:w-auto">
               {t("hero.cta1", lang)}
               <ArrowRight className="w-5 h-5" />
             </Link>

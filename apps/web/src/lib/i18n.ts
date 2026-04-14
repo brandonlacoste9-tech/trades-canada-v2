@@ -18,12 +18,20 @@ const translations = {
     "hero.headline1": "We Build the Engine.",
     "hero.headline2": "You Get the Leads.",
     "hero.sub": "The all-in-one Lead Generation, Radar, and Marketplace platform built for Canadian Trades — from coast to coast.",
-    "hero.cta1": "Get a Quote",
+    "hero.cta1": "View plans",
     "hero.cta2": "See How It Works",
     "hero.stat.leads": "Leads Generated",
     "hero.stat.cities": "Cities Covered",
     "hero.stat.retention": "Client Retention",
     "hero.stat.roi": "Average ROI",
+
+    // Trust strip (homepage)
+    "trust.title": "Why contractors choose us",
+    "trust.aria": "Trust and product highlights",
+    "trust.item1": "Bilingual EN/FR nationwide",
+    "trust.item2": "Telegram alerts in seconds",
+    "trust.item3": "Built for Canadian trades",
+    "trust.item4": "Secure checkout with Stripe",
 
     // Features
     "features.badge": "Platform",
@@ -195,12 +203,20 @@ const translations = {
     "hero.headline1": "On construit le moteur.",
     "hero.headline2": "Vous récoltez les leads.",
     "hero.sub": "La plateforme tout-en-un de génération de leads, radar et marché conçue pour les métiers canadiens — d'un océan à l'autre.",
-    "hero.cta1": "Obtenir un devis",
+    "hero.cta1": "Voir les forfaits",
     "hero.cta2": "Voir comment ça marche",
     "hero.stat.leads": "Leads générés",
     "hero.stat.cities": "Villes couvertes",
     "hero.stat.retention": "Rétention client",
     "hero.stat.roi": "ROI moyen",
+
+    // Trust strip (homepage)
+    "trust.title": "Pourquoi les entrepreneurs nous choisissent",
+    "trust.aria": "Confiance et avantages du produit",
+    "trust.item1": "Bilingue EN/FR partout au pays",
+    "trust.item2": "Alertes Telegram en quelques secondes",
+    "trust.item3": "Conçu pour les métiers canadiens",
+    "trust.item4": "Paiement sécurisé avec Stripe",
 
     // Features
     "features.badge": "Plateforme",

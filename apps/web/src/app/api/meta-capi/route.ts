@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     email,        // user email (will be hashed)
     phone,        // user phone (will be hashed, optional)
     city,         // city slug for geo targeting
+    content_name, // optional product/tier label (pricing funnel)
     value,        // monetary value (for Purchase/Subscribe events)
     currency,     // "CAD" for Canada
     event_id,     // deduplication ID (match client-side fbq event_id)
@@ -42,7 +43,8 @@ export async function POST(req: NextRequest) {
   const custom_data: Record<string, string | number> = {
     currency: currency ?? "CAD",
   };
-  if (city) custom_data.content_name = city;
+  if (content_name) custom_data.content_name = content_name;
+  else if (city) custom_data.content_name = city;
   if (value) custom_data.value = value;
 
   const payload = {

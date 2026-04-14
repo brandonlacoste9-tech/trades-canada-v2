@@ -4,7 +4,9 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Check, Zap, ArrowRight } from "lucide-react";
 import { t, type Lang } from "@/lib/i18n";
-import { HARDCODED_PRICE_IDS } from "@/lib/stripe-prices";
+import { HARDCODED_PRICE_IDS, monthlyCadForPriceId } from "@/lib/stripe-prices";
+import { useMetaEvents } from "@/hooks/useMetaEvents";
+import { pushFunnelEvent } from "@/lib/funnel-analytics";
 
 interface PricingSectionProps {
   lang: Lang;
@@ -20,6 +22,7 @@ const PRICE_IDS = {
 
 const plans = [
   {
+    tier: "starter" as const,
     nameKey: "pricing.starter.name" as const,
     price: "$149",
     priceId: PRICE_IDS.starter,
@@ -43,6 +46,7 @@ const plans = [
     cta: "pricing.cta" as const,
   },
   {
+    tier: "engine" as const,
     nameKey: "pricing.engine.name" as const,
     price: "$349",
     priceId: PRICE_IDS.engine,
@@ -68,6 +72,7 @@ const plans = [
     cta: "pricing.cta" as const,
   },
   {
+    tier: "dominator" as const,
     nameKey: "pricing.dominator.name" as const,
     price: "$599",
     priceId: PRICE_IDS.dominator,
@@ -95,6 +100,8 @@ const plans = [
 ];
 
 export default function PricingSection({ lang }: PricingSectionProps) {
+  const meta = useMetaEvents();
+
   return (
     <section id="pricing" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-amber-glow-sm" />
@@ -159,6 +166,15 @@ export default function PricingSection({ lang }: PricingSectionProps) {
                   if (typeof window !== "undefined") {
                     localStorage.setItem("pending_price_id", plan.priceId);
                   }
+                  const valueCad = monthlyCadForPriceId(plan.priceId);
+                  void meta.trackPricingPlanClicked(plan.tier, valueCad);
+                  pushFunnelEvent({
+                    event: "pricing_plan_click",
+                    tier: plan.tier,
+                    price_id: plan.priceId,
+                    value_cad: valueCad,
+                    lang,
+                  });
                 }}
                 className={plan.popular ? "btn-amber justify-center" : "btn-outline-amber justify-center"}
               >

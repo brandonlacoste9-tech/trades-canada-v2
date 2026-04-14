@@ -9,6 +9,8 @@ import ROICalculator from "@/components/marketing/ROICalculator";
 import PricingSection from "@/components/marketing/PricingSection";
 import LeadForm from "@/components/marketing/LeadForm";
 import VideoSection from "@/components/marketing/VideoSection";
+import TrustStrip from "@/components/marketing/TrustStrip";
+import { HomepageFAQSchema } from "@/components/shared/StructuredData";
 
 interface HomePageProps {
   params: Promise<{ lang: string }>;
@@ -18,19 +20,36 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const { lang } = await params;
   const isFr = lang === "fr";
 
+  const title = isFr
+    ? "Trades-Canada — La plateforme #1 de croissance pour entrepreneurs canadiens"
+    : "Trades-Canada — Canada's #1 Contractor Growth Platform";
+  const description = isFr
+    ? "La plateforme tout-en-un de génération de leads, radar et marché conçue pour les métiers canadiens. Moteur de leads bilingue EN/FR d'un océan à l'autre."
+    : "The all-in-one Lead Generation, Radar, and Marketplace platform built for Canadian Trades. Bilingual EN/FR lead generation engine from coast to coast.";
+
   return {
-    title: isFr
-      ? "Trades-Canada — La plateforme #1 de croissance pour entrepreneurs canadiens"
-      : "Trades-Canada — Canada's #1 Contractor Growth Platform",
-    description: isFr
-      ? "La plateforme tout-en-un de génération de leads, radar et marché conçue pour les métiers canadiens. Moteur de leads bilingue EN/FR d'un océan à l'autre."
-      : "The all-in-one Lead Generation, Radar, and Marketplace platform built for Canadian Trades. Bilingual EN/FR lead generation engine from coast to coast.",
+    title,
+    description,
     alternates: {
       canonical: `https://trades-canada.com/${lang}`,
       languages: {
         "en-CA": "https://trades-canada.com/en",
         "fr-CA": "https://trades-canada.com/fr",
       },
+    },
+    openGraph: {
+      type: "website",
+      url: `https://trades-canada.com/${lang}`,
+      siteName: "Trades-Canada",
+      locale: isFr ? "fr_CA" : "en_CA",
+      alternateLocale: isFr ? "en_CA" : "fr_CA",
+      title,
+      description,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
     },
   };
 }
@@ -46,9 +65,11 @@ export default async function HomePage({ params }: HomePageProps) {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <HomepageFAQSchema lang={l} />
       <Navbar lang={l} />
       <main className="flex-1">
         <HeroSection lang={l} />
+        <TrustStrip lang={l} />
         <VideoSection lang={l} />
         <FeaturesSection lang={l} />
         <ROICalculator lang={l} />

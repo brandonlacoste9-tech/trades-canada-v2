@@ -7,6 +7,8 @@ import { LogIn, UserPlus, Mail, Lock, User, Building2, Eye, EyeOff, ArrowRight }
 import { t, type Lang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { useMetaEvents } from "@/hooks/useMetaEvents";
+import { buildPriceToTierMap, monthlyCadForPriceId } from "@/lib/stripe-prices";
+import { pushFunnelEvent } from "@/lib/funnel-analytics";
 
 interface AuthFormProps {
   lang: Lang;
@@ -31,6 +33,8 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
 
   const supabase = createClient();
   const meta = useMetaEvents();
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
   /** Avoid duplicate Stripe session if React Strict Mode runs the effect twice. */
   const checkoutGuardKey =
     typeof planId === "string" ? `tc_stripe_launch_${planId}` : null;
@@ -60,6 +64,16 @@ export default function AuthForm({ lang, planId, initialMode = "login" }: AuthFo
         if (typeof window !== "undefined") {
           localStorage.removeItem("pending_price_id");
         }
+        const tier = buildPriceToTierMap()[activePriceId] ?? "starter";
+        const valueCad = monthlyCadForPriceId(activePriceId);
+        void metaRef.current.trackCheckoutStarted(valueCad, `plan_${tier}`);
+        pushFunnelEvent({
+          event: "checkout_start",
+          tier,
+          price_id: activePriceId,
+          value_cad: valueCad,
+          lang,
+        });
         window.location.href = payload.url;
         return { ok: true };
       } catch (err) {

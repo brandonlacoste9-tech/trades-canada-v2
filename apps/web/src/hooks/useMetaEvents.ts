@@ -11,6 +11,8 @@ interface MetaEventOptions {
   email?: string;
   phone?: string;
   city?: string;
+  /** e.g. plan_starter — used when city is not the right field */
+  content_name?: string;
   value?: number;
   currency?: string;
 }
@@ -19,11 +21,13 @@ export function useMetaEvents() {
   async function fire(event: FbqEvent, opts: MetaEventOptions = {}) {
     const event_id = crypto.randomUUID();
 
+    const contentName = opts.content_name ?? opts.city;
+
     // 1. Client-side pixel (for browser attribution)
     trackEvent(event, {
       event_id,
       ...(opts.value ? { value: opts.value, currency: opts.currency ?? "CAD" } : {}),
-      ...(opts.city ? { content_name: opts.city } : {}),
+      ...(contentName ? { content_name: contentName } : {}),
     });
 
     // 2. Server-side CAPI (bypasses blockers, iOS 14+)
@@ -50,7 +54,16 @@ export function useMetaEvents() {
 
     // ── Contractor events ───────────────────────────────────────────────────
     trackSignupStarted: () => fire("CompleteRegistration"),
-    trackCheckoutStarted: (value: number) => fire("InitiateCheckout", { value }),
+    trackCheckoutStarted: (value: number, content_name?: string) =>
+      fire("InitiateCheckout", { value, content_name, currency: "CAD" }),
+
+    /** User chose a subscription tier on the pricing section (funnel top). */
+    trackPricingPlanClicked: (tier: "starter" | "engine" | "dominator", monthlyCad: number) =>
+      fire("ViewContent", {
+        content_name: `plan_${tier}`,
+        value: monthlyCad,
+        currency: "CAD",
+      }),
     trackSubscribed: (email: string, value: number) =>
       fire("Subscribe", { email, value }),
     trackPurchase: (email: string, value: number) =>

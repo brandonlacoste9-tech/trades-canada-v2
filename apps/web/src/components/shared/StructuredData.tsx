@@ -57,6 +57,18 @@ export function OrganizationSchema({ lang }: OrganizationSchemaProps) {
         ],
       },
       {
+        "@type": "WebSite",
+        "@id": "https://trades-canada.com/#website",
+        url: "https://trades-canada.com",
+        name: "Trades-Canada",
+        inLanguage: ["en-CA", "fr-CA"],
+        publisher: { "@id": "https://trades-canada.com/#organization" },
+        description:
+          lang === "en"
+            ? "Canada's contractor growth platform — bilingual lead generation, Telegram alerts, and marketplace tools for trades businesses."
+            : "Plateforme de croissance pour entrepreneurs au Canada — génération de leads bilingue, alertes Telegram et outils marché.",
+      },
+      {
         "@type": "SoftwareApplication",
         "@id": "https://trades-canada.com/#software",
         name: "Trades-Canada Platform",
@@ -65,23 +77,23 @@ export function OrganizationSchema({ lang }: OrganizationSchemaProps) {
         offers: [
           {
             "@type": "Offer",
-            name: "Starter",
-            price: "199",
+            name: "Lead Starter",
+            price: "149",
             priceCurrency: "CAD",
             billingIncrement: "P1M",
             description: "Lead alerts for 1 city, 1 trade category",
           },
           {
             "@type": "Offer",
-            name: "Pro",
-            price: "399",
+            name: "Lead Engine",
+            price: "349",
             priceCurrency: "CAD",
             billingIncrement: "P1M",
             description: "Multi-city, multi-trade, Lead Radar access",
           },
           {
             "@type": "Offer",
-            name: "Elite",
+            name: "Market Dominator",
             price: "599",
             priceCurrency: "CAD",
             billingIncrement: "P1M",
@@ -113,7 +125,7 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
     },
     {
       q: `How much does contractor lead generation cost in ${cityName}?`,
-      a: `Trades-Canada offers three plans for ${cityName} contractors: Starter at $199 CAD/month (1 city, 1 trade), Pro at $399 CAD/month (multi-city, Lead Radar), and Elite at $599 CAD/month (all cities, all trades, white-glove support). The average contractor closes 2–4 jobs per month, generating $8,000–$32,000 in revenue.`,
+      a: `Trades-Canada offers three plans for ${cityName} contractors: Lead Starter at $149 CAD/month (1 city, 1 trade), Lead Engine at $349 CAD/month (multi-city, Lead Radar), and Market Dominator at $599 CAD/month (all cities, all trades, white-glove support). The average contractor closes 2–4 jobs per month, generating $8,000–$32,000 in revenue.`,
     },
     {
       q: `What is the Lead Radar for ${cityName}?`,
@@ -132,7 +144,7 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
     },
     {
       q: `Combien coûte la génération de prospects pour entrepreneurs à ${cityName}?`,
-      a: `Trades-Canada propose trois plans pour les entrepreneurs de ${cityName} : Débutant à 199 $ CAD/mois, Pro à 399 $ CAD/mois et Élite à 599 $ CAD/mois. L'entrepreneur moyen ferme 2 à 4 contrats par mois, générant 8 000 $ à 32 000 $ en revenus.`,
+      a: `Trades-Canada propose trois plans pour les entrepreneurs de ${cityName} : Démarreur à 149 $ CAD/mois, Moteur à 349 $ CAD/mois et Dominateur à 599 $ CAD/mois. L'entrepreneur moyen ferme 2 à 4 contrats par mois, générant 8 000 $ à 32 000 $ en revenus.`,
     },
   ];
 
@@ -164,7 +176,7 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
           audienceType: "Contractors and Trades Businesses",
           numberOfEmployees: { "@type": "QuantitativeValue", value: population },
         },
-        priceRange: "$199–$599 CAD/month",
+        priceRange: "$149–$599 CAD/month",
       },
       {
         "@type": "FAQPage",
@@ -191,7 +203,7 @@ export function HomepageFAQSchema({ lang }: { lang: "en" | "fr" }) {
   const faqEn = [
     {
       q: "What is Trades-Canada?",
-      a: "Trades-Canada is Canada's #1 contractor growth platform. It provides real-time homeowner lead alerts via Telegram, building permit intelligence (Lead Radar), a bilingual EN/FR lead network, and automated marketing for Canadian trades businesses. Plans start at $199 CAD/month.",
+      a: "Trades-Canada is Canada's #1 contractor growth platform. It provides real-time homeowner lead alerts via Telegram, building permit intelligence (Lead Radar), a bilingual EN/FR lead network, and automated marketing for Canadian trades businesses. Plans start at $149 CAD/month.",
     },
     {
       q: "How does Trades-Canada compare to HomeStars?",
@@ -214,7 +226,7 @@ export function HomepageFAQSchema({ lang }: { lang: "en" | "fr" }) {
   const faqFr = [
     {
       q: "Qu'est-ce que Trades-Canada?",
-      a: "Trades-Canada est la plateforme de croissance #1 pour les entrepreneurs au Canada. Elle fournit des alertes de prospects en temps réel via Telegram, l'intelligence des permis de construction (Radar de prospects), un réseau de leads bilingue EN/FR et du marketing automatisé pour les entreprises de métiers canadiennes. Les plans commencent à 199 $ CAD/mois.",
+      a: "Trades-Canada est la plateforme de croissance #1 pour les entrepreneurs au Canada. Elle fournit des alertes de prospects en temps réel via Telegram, l'intelligence des permis de construction (Radar de prospects), un réseau de leads bilingue EN/FR et du marketing automatisé pour les entreprises de métiers canadiennes. Les plans commencent à 149 $ CAD/mois.",
     },
     {
       q: "Comment Trades-Canada se compare-t-il à HomeStars?",

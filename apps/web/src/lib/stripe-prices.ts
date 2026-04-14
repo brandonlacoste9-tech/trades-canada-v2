@@ -51,3 +51,15 @@ export function buildPriceToTierMap(): Record<string, string> {
     [dominator]: "dominator",
   };
 }
+
+/** Monthly list price in CAD (matches marketing / subscription_plans). */
+const TIER_MONTHLY_CAD: Record<string, number> = {
+  starter: 149,
+  engine: 349,
+  dominator: 599,
+};
+
+export function monthlyCadForPriceId(priceId: string): number {
+  const tier = buildPriceToTierMap()[priceId] ?? "starter";
+  return TIER_MONTHLY_CAD[tier] ?? 149;
+}
