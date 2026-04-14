@@ -32,7 +32,8 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
   const [polling, setPolling] = useState(false);
   const [telegramConnected, setTelegramConnected] = useState(!!profile?.telegram_chat_id);
 
-  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createClient() as any;
 
   const handleSave = async () => {
     setSaving(true);
