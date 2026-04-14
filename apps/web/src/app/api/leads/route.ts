@@ -167,9 +167,6 @@ export async function POST(req: NextRequest) {
     const { data: insertedLead, error: dbError } = await supabase
       .from("leads")
       .insert({
-        name: parsed.data.name,
-        email: parsed.data.email,
-        phone: parsed.data.phone ?? null,
         project_type: projectType,
         language: parsed.data.language ?? "en",
         city: parsed.data.city ?? null,
@@ -179,6 +176,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (dbError) {
+      // ... same error handling ...
       const msgLower = dbError.message.toLowerCase();
       const looksLikeSelectAfterAnonInsert =
         dbError.code === "PGRST116" ||
@@ -205,6 +203,14 @@ export async function POST(req: NextRequest) {
         { error: dbError.message, code: "DB_INSERT_FAILED" },
         { status: 500 }
       );
+    }
+    if (insertedLead?.id) {
+      await supabase.from("lead_contacts").insert({
+        lead_id: insertedLead.id,
+        name: parsed.data.name,
+        email: parsed.data.email,
+        phone: parsed.data.phone ?? null,
+      });
     }
 
     // Qualification + logs must not fail the HTTP response after a successful insert.

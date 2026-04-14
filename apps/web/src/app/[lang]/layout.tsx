@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isValidLang, type Lang } from "@/lib/i18n";
-import { OrganizationSchema } from "@/components/shared/StructuredData";
+import { OrganizationSchema, TradesServiceSchema, HomepageFAQSchema } from "@/components/shared/StructuredData";
 import LangHtmlSetter from "@/components/shared/LangHtmlSetter";
 
 interface LangLayoutProps {
@@ -39,12 +39,17 @@ export default async function LangLayout({ children, params }: LangLayoutProps) 
     notFound();
   }
 
+  const l = lang as Lang;
+
   return (
     <>
       {/* Dynamically update <html lang="…"> without nesting a second html element */}
-      <LangHtmlSetter lang={lang as Lang} />
+      <LangHtmlSetter lang={l} />
       {/* AI SEO: Organization entity — tells LLMs exactly what this brand is */}
-      <OrganizationSchema lang={lang as Lang} />
+      <OrganizationSchema lang={l} />
+      {/* AI SEO: Service & FAQ schemas for GEO (Generative Engine Optimization) */}
+      <TradesServiceSchema lang={l} />
+      <HomepageFAQSchema lang={l} />
       {children}
     </>
   );

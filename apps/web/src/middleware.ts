@@ -13,10 +13,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── i18n redirect: / → /en ──
+  // ─── i18n redirect: / → /en or /fr (Quebec Priority) ──
   if (pathname === "/") {
     const acceptLang = request.headers.get("accept-language") ?? "";
-    const preferred = acceptLang.split(",")[0]?.split("-")[0]?.toLowerCase();
+    const qcRegion = request.headers.get("x-vercel-ip-country-region") === "QC";
+    
+    let preferred = acceptLang.split(",")[0]?.split("-")[0]?.toLowerCase();
+    
+    // Bill 96 / Quebec Sovereignty Rule: Prioritize French if in QC
+    if (qcRegion && !preferred?.includes("fr")) {
+       preferred = "fr";
+    }
+    
     const lang = isValidLang(preferred ?? "") ? preferred : defaultLocale;
     return NextResponse.redirect(new URL(`/${lang}`, request.url));
   }

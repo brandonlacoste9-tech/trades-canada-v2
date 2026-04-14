@@ -116,29 +116,34 @@ export async function POST(req: NextRequest) {
     if (insertErr.code === "23505") {
       // Already unlocked — return the lead data anyway
       let existingLeadData = null;
-      const { data: existingRegularLead } = await admin
-        .from("leads")
-        .select("id, name, email, phone, message, city, project_type")
-        .eq("id", leadId)
+      const { data: existingRegularLeadContact } = await admin
+        .from("lead_contacts")
+        .select("name, email, phone")
+        .eq("lead_id", leadId)
         .single();
         
-      if (existingRegularLead) {
-        existingLeadData = existingRegularLead;
+      if (existingRegularLeadContact) {
+        const { data: leadBase } = await admin
+          .from("leads")
+          .select("id, message, city, project_type")
+          .eq("id", leadId)
+          .single();
+        existingLeadData = (leadBase && existingRegularLeadContact) ? { ...leadBase, ...existingRegularLeadContact } : null;
       } else {
         const { data: existingScrapedLead } = await admin
           .from("scraped_inventory")
-          .select("id, title, location, url, permit_number, city")
+          .select("id, title, location, url, permit_number, city, enriched_name, enriched_email, enriched_phone")
           .eq("id", leadId)
           .single();
           
         if (existingScrapedLead) {
           existingLeadData = {
              id: existingScrapedLead.id,
-             name: tier === "elite" ? `Verified Owner (Permit ${existingScrapedLead.permit_number || "N/A"})` : `Permit: ${existingScrapedLead.permit_number || "Open Data"}`,
+             name: existingScrapedLead.enriched_name || (tier === "elite" ? `Verified Owner (Permit ${existingScrapedLead.permit_number || "N/A"})` : `Permit: ${existingScrapedLead.permit_number || "Open Data"}`),
              city: existingScrapedLead.city,
              url: existingScrapedLead.url,
-             email: null,
-             phone: tier === "elite" ? `(Previously enriched — click to re-fetch)` : null
+             email: existingScrapedLead.enriched_email,
+             phone: existingScrapedLead.enriched_phone || (tier === "elite" && !existingScrapedLead.enriched_name ? `(Previously enriched — click to re-fetch)` : null)
           };
         }
       }
@@ -159,19 +164,24 @@ export async function POST(req: NextRequest) {
   let leadData = null;
 
   // First try to fetch from regular leads
-  const { data: regularLead } = await admin
-    .from("leads")
-    .select("id, name, email, phone, message, city, project_type")
-    .eq("id", leadId)
+  const { data: regularLeadContact } = await admin
+    .from("lead_contacts")
+    .select("name, email, phone")
+    .eq("lead_id", leadId)
     .single();
     
-  if (regularLead) {
-    leadData = regularLead;
+  if (regularLeadContact) {
+    const { data: leadBase } = await admin
+      .from("leads")
+      .select("id, message, city, project_type")
+      .eq("id", leadId)
+      .single();
+    leadData = (leadBase && regularLeadContact) ? { ...leadBase, ...regularLeadContact } : null;
   } else {
     // If not in leads, try scraped_inventory (Firecrawl leads)
     const { data: scrapedLead } = await admin
       .from("scraped_inventory")
-      .select("id, title, location, url, permit_number, city")
+      .select("id, title, location, url, permit_number, city, enriched_name, enriched_email, enriched_phone")
       .eq("id", leadId)
       .single();
       
@@ -264,6 +274,16 @@ export async function POST(req: NextRequest) {
         leadData.phone = enrichedPhone ? `${enrichedPhone} (Verified)` : null;
         if (enrichedEmail) {
           (leadData as Record<string, unknown>).email = enrichedEmail;
+        }
+
+        // PERSIST ENRICHMENT
+        if (enrichedName || enrichedPhone || enrichedEmail) {
+          await admin.from("scraped_inventory").update({
+            enriched_name: enrichedName,
+            enriched_phone: enrichedPhone,
+            enriched_email: enrichedEmail,
+            enriched_at: new Date().toISOString()
+          }).eq("id", leadId);
         }
       }
     }

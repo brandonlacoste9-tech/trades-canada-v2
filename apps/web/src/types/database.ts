@@ -127,6 +127,31 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["leads"]["Insert"]>;
         Relationships: [];
       };
+      lead_contacts: {
+        Row: {
+          lead_id: string;
+          name: string;
+          email: string;
+          phone: string | null;
+          created_at: string;
+        };
+        Insert: {
+          lead_id: string;
+          name: string;
+          email: string;
+          phone?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["lead_contacts"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "lead_contacts_lead_id_fkey";
+            columns: ["lead_id"];
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       profiles: {
         Row: {
           id: string;
@@ -234,6 +259,10 @@ export interface Database {
           // Added in migration 20260326000001
           latitude: number | null;
           longitude: number | null;
+          enriched_name: string | null;
+          enriched_email: string | null;
+          enriched_phone: string | null;
+          enriched_at: string | null;
         };
         Insert: {
           id?: string;
@@ -249,6 +278,10 @@ export interface Database {
           estimated_value?: number | null;
           latitude?: number | null;
           longitude?: number | null;
+          enriched_name?: string | null;
+          enriched_email?: string | null;
+          enriched_phone?: string | null;
+          enriched_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["scraped_inventory"]["Insert"]>;
         Relationships: [];

@@ -23,6 +23,14 @@ const config: Config = {
           800: "#92400e",
           900: "#78350f",
         },
+        // Luxury Imperial Theme
+        imperial: {
+          black: "#0a0806",
+          leather: "#2a1b12",
+          suede: "#3d2b1f",
+          gold: "#c5a059",
+          "gold-bright": "#e5c07b",
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -67,6 +75,9 @@ const config: Config = {
         "amber-glow-sm": "radial-gradient(ellipse at 50% 0%, rgba(245,158,11,0.08) 0%, transparent 50%)",
         "grid-pattern": "linear-gradient(rgba(245,158,11,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.03) 1px, transparent 1px)",
         "hero-gradient": "linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(15,10,5,0.98) 50%, rgba(0,0,0,0.95) 100%)",
+        "leather-texture": "url('/textures/leather-dark.png')", // We'll add a CSS fallback for this
+        "suede-texture": "linear-gradient(145deg, #2a1b12 0%, #3d2b1f 100%)",
+        "gold-shimmer": "linear-gradient(90deg, transparent, rgba(197,160,89,0.2), transparent)",
       },
       backgroundSize: {
         "grid": "60px 60px",

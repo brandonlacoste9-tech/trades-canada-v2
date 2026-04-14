@@ -15,13 +15,13 @@ test.describe("Trades-Canada smoke", () => {
   });
 
   test("marketing home loads", async ({ page }) => {
-    await page.goto("/en");
+    await page.goto("/en", { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
   });
 
   test("French home loads", async ({ page }) => {
-    await page.goto("/fr");
+    await page.goto("/fr", { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
   });

@@ -126,10 +126,12 @@ export default function PricingSection({ lang }: PricingSectionProps) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
-              className={`relative rounded-2xl p-6 flex flex-col gap-6 ${
-                plan.popular
-                  ? "bg-amber-500/8 border border-amber-500/30 shadow-amber"
-                  : "glass-card cyber-border"
+              className={`relative rounded-2xl p-8 flex flex-col gap-6 transition-all duration-500 hover:-translate-y-2 ${
+                plan.nameKey === "pricing.dominator.name" 
+                  ? "leather-card gold-border scale-105 z-20" 
+                  : plan.popular
+                    ? "bg-amber-500/10 border border-amber-500/30 shadow-amber z-10"
+                    : "glass-card cyber-border opacity-90 hover:opacity-100"
               }`}
             >
               {plan.popular && (

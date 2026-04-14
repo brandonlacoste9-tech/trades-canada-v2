@@ -257,3 +257,46 @@ export function HomepageFAQSchema({ lang }: { lang: "en" | "fr" }) {
     />
   );
 }
+
+// ─── Trades Service Category Schema (AI SEO) ─────────────────────────────────
+export function TradesServiceSchema({ lang }: { lang: "en" | "fr" }) {
+  const trades = [
+    { en: "Roofing", fr: "Toiture", icon: "🏠" },
+    { en: "Plumbing", fr: "Plomberie", icon: "🚰" },
+    { en: "Electrical", fr: "Électricité", icon: "⚡" },
+    { en: "HVAC", fr: "CVAC", icon: "❄️" },
+    { en: "Landscaping", fr: "Aménagement paysager", icon: "🌳" },
+    { en: "Renovations", fr: "Rénovations", icon: "🛠️" },
+    { en: "General Contracting", fr: "Entrepreneur général", icon: "🏗️" },
+  ];
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    provider: { "@id": "https://trades-canada.com/#organization" },
+    serviceType: lang === "en" ? "Contractor Lead Generation" : "Génération de prospects pour entrepreneurs",
+    areaServed: { "@type": "Country", name: "Canada" },
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: lang === "en" ? "Tradework Automation Services" : "Services d'automatisation des métiers",
+      itemListElement: trades.map((t, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        item: {
+          "@type": "Service",
+          name: lang === "en" ? `${t.en} Leads` : `Prospects en ${t.fr}`,
+          description: lang === "en" 
+            ? `Exclusive real-time homeowner leads for ${t.en} contractors in Canada.` 
+            : `Prospects propriétaires exclusifs en temps réel pour entrepreneurs en ${t.fr} au Canada.`
+        }
+      }))
+    }
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
