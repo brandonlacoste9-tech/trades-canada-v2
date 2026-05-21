@@ -34,3 +34,5 @@ blob-report/
 supabase/.temp/
 apps/web/tsconfig.tsbuildinfo
 .vercel
+
+.vercel
