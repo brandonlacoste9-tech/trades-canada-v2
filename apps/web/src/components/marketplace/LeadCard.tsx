@@ -618,19 +618,21 @@ const LeadCard: React.FC<LeadCardProps> = ({
                 )}
 
                 {/* Privacy notice */}
-                <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
-                    <Lock size={20} />
+                {!unlocked && (
+                  <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                      <Lock size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-amber-400/80 uppercase tracking-widest italic mb-0.5">
+                        {lang === "en" ? "Secure Intelligence" : "Intelligence Sécurisée"}
+                      </p>
+                      <p className="text-xs text-muted-foreground font-medium leading-snug">
+                        {t("marketplace.intel.warning")}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-black text-amber-400/80 uppercase tracking-widest italic mb-0.5">
-                      {lang === "en" ? "Secure Intelligence" : "Intelligence Sécurisée"}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-medium leading-snug">
-                      {t("marketplace.intel.warning")}
-                    </p>
-                  </div>
-                </div>
+                )}
 
                 {/* Inline error if any */}
                 {error && (
