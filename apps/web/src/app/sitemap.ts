@@ -26,13 +26,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   // Static pages per language — only include routes that actually exist
-  const staticPages = ["booking"];
+  // get-quote is the national homeowner capture URL for ads
+  const staticPages = [
+    { page: "booking", priority: 0.7 },
+    { page: "get-quote", priority: 0.95 },
+  ] as const;
   const staticEntries: MetadataRoute.Sitemap = LANGS.flatMap((lang) =>
-    staticPages.map((page) => ({
+    staticPages.map(({ page, priority }) => ({
       url: `${BASE_URL}/${lang}/${page}`,
       lastModified: now,
-      changeFrequency: "monthly" as const,
-      priority: 0.7,
+      changeFrequency: "weekly" as const,
+      priority,
     }))
   );
 

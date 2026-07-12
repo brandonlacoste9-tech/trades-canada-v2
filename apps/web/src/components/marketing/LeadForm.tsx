@@ -9,6 +9,11 @@ import { useMetaEvents } from "@/hooks/useMetaEvents";
 interface LeadFormProps {
   lang: Lang;
   city?: string; // passed from city landing pages for geo-targeted CAPI
+  /**
+   * homeowner = free quote form (callable PII leads)
+   * contractor = platform access / B2B (homepage CTA)
+   */
+  variant?: "homeowner" | "contractor";
 }
 
 // Values MUST exactly match the project_type enum in Supabase:
@@ -50,7 +55,12 @@ const PROJECT_TYPE_LABELS = {
 type ProjectTypeValue = (typeof PROJECT_TYPE_VALUES)[number];
 type LeadSubmitErrorMeta = { status?: number; apiCode?: string };
 
-export default function LeadForm({ lang, city }: LeadFormProps) {
+export default function LeadForm({
+  lang,
+  city,
+  variant = "contractor",
+}: LeadFormProps) {
+  const isHomeowner = variant === "homeowner";
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -66,9 +76,9 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
 
   // Fire ViewContent when the form mounts (homeowner audience signal)
   useEffect(() => {
-    if (city) meta.trackLeadFormView(city);
+    if (city || isHomeowner) meta.trackLeadFormView(city ?? "canada");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [city]);
+  }, [city, isHomeowner]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,31 +193,56 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="glass-card cyber-border rounded-2xl p-10 text-center"
+        id="get-quote"
       >
         <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mx-auto mb-4">
           <CheckCircle className="w-8 h-8 text-amber-400" />
         </div>
         <h3 className="font-display font-bold text-xl mb-2">
-          {lang === "en" ? "Request Received!" : "Demande reçue!"}
+          {isHomeowner
+            ? lang === "en"
+              ? "Quote request received!"
+              : "Demande de soumission reçue!"
+            : lang === "en"
+              ? "Request Received!"
+              : "Demande reçue!"}
         </h3>
         <p className="text-muted-foreground text-sm">
-          {lang === "en"
-            ? "We'll reach out within 24 hours to discuss your growth strategy."
-            : "Nous vous contacterons dans les 24 heures pour discuter de votre stratégie de croissance."}
+          {isHomeowner
+            ? lang === "en"
+              ? "A local licensed contractor will contact you shortly — usually within a few hours."
+              : "Un entrepreneur local licencié vous contactera sous peu — souvent en quelques heures."
+            : lang === "en"
+              ? "We'll reach out within 24 hours to discuss your growth strategy."
+              : "Nous vous contacterons dans les 24 heures pour discuter de votre stratégie de croissance."}
         </p>
       </motion.div>
     );
   }
 
   return (
-    <div className="glass-card cyber-border rounded-2xl p-8">
+    <div className="glass-card cyber-border rounded-2xl p-8" id="get-quote">
       <h3 className="font-display font-bold text-xl mb-2">
-        {lang === "en" ? "Request Platform Access" : "Demander l'accès à la plateforme"}
+        {isHomeowner
+          ? lang === "en"
+            ? city
+              ? `Get free quotes in ${city}`
+              : "Get free contractor quotes"
+            : city
+              ? `Obtenez des soumissions gratuites à ${city}`
+              : "Obtenez des soumissions gratuites"
+          : lang === "en"
+            ? "Request Platform Access"
+            : "Demander l'accès à la plateforme"}
       </h3>
       <p className="text-muted-foreground text-sm mb-6">
-        {lang === "en"
-          ? "Tell us about your business to get started with our local lead network."
-          : "Parlez-nous de votre entreprise pour démarrer avec notre réseau local de leads."}
+        {isHomeowner
+          ? lang === "en"
+            ? "Tell us about your project. Matched contractors reach out with quotes — free for homeowners."
+            : "Décrivez votre projet. Des entrepreneurs jumelés vous contacteront — gratuit pour les propriétaires."
+          : lang === "en"
+            ? "Tell us about your business to get started with our local lead network."
+            : "Parlez-nous de votre entreprise pour démarrer avec notre réseau local de leads."}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -233,8 +268,17 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           autoComplete="name"
         />
         <input
-          type="tel"
-          placeholder={lang === "en" ? "Phone Number (recommended)" : "Numéro de téléphone (recommandé)"}
+          type={isHomeowner ? "tel" : "tel"}
+          required={isHomeowner}
+          placeholder={
+            isHomeowner
+              ? lang === "en"
+                ? "Phone Number *"
+                : "Numéro de téléphone *"
+              : lang === "en"
+                ? "Phone Number (recommended)"
+                : "Numéro de téléphone (recommandé)"
+          }
           value={form.phone}
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
           className="input-amber"
@@ -256,7 +300,11 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
         >
           {PROJECT_TYPE_VALUES.map((value, i) => (
             <option key={value} value={value} className="bg-background">
-              {PROJECT_TYPE_LABELS[lang][i]}
+              {isHomeowner
+                ? lang === "en"
+                  ? `I need: ${PROJECT_TYPE_LABELS.en[i]}`
+                  : `J'ai besoin: ${PROJECT_TYPE_LABELS.fr[i]}`
+                : PROJECT_TYPE_LABELS[lang][i]}
             </option>
           ))}
         </select>
@@ -274,15 +322,25 @@ export default function LeadForm({ lang, city }: LeadFormProps) {
           ) : (
             <>
               <Send className="w-4 h-4" />
-              {lang === "en" ? "Request Access" : "Demander l'accès"}
+              {isHomeowner
+                ? lang === "en"
+                  ? "Get free quotes"
+                  : "Obtenir des soumissions"
+                : lang === "en"
+                  ? "Request Access"
+                  : "Demander l'accès"}
             </>
           )}
         </button>
 
         <p className="text-center text-xs text-muted-foreground">
-          {lang === "en"
-            ? "No commitment. We'll respond within 24 hours."
-            : "Sans engagement. Réponse sous 24 heures."}
+          {isHomeowner
+            ? lang === "en"
+              ? "Free for homeowners. No spam — only matched local trades."
+              : "Gratuit pour les propriétaires. Pas de pourriel — métiers locaux seulement."
+            : lang === "en"
+              ? "No commitment. We'll respond within 24 hours."
+              : "Sans engagement. Réponse sous 24 heures."}
         </p>
       </form>
     </div>

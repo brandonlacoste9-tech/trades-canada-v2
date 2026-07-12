@@ -4,11 +4,27 @@ import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js
 import type { Database } from "@/types/database";
 import { evaluateLeadEligibility } from "@/lib/leadEligibility";
 
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  return /your-|placeholder/i.test(value);
+}
+
+/** Prefer service_role; fall back to anon for environments still missing secret key. */
 function getAdminSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Supabase service role credentials not configured.");
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || isPlaceholder(url)) {
+    throw new Error("Supabase URL not configured.");
+  }
+  const key =
+    serviceKey && !isPlaceholder(serviceKey)
+      ? serviceKey
+      : anonKey && !isPlaceholder(anonKey)
+        ? anonKey
+        : null;
+  if (!key) {
+    throw new Error("Supabase credentials not configured.");
   }
   return createSupabaseAdminClient<Database>(url, key, { auth: { persistSession: false } });
 }

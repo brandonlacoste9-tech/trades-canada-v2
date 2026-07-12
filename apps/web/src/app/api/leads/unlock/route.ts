@@ -2,17 +2,53 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { normalizeTier } from "@/lib/leadEligibility";
 
 // ─── POST /api/leads/unlock ────────────────────────────────────────────────────
-// Authenticated route. Checks the contractor's subscription plan lead_limit,
-// counts how many they've already unlocked this billing cycle, then inserts
-// into lead_unlocks if they have capacity left.
+// Authenticated. Enforces tier + monthly limits, then returns contact / permit
+// details for marketplace cards (form leads OR municipal inventory).
+
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  return /your-|placeholder/i.test(value);
+}
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase service role not configured.");
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || isPlaceholder(url)) throw new Error("Supabase URL not configured.");
+  const key =
+    serviceKey && !isPlaceholder(serviceKey)
+      ? serviceKey
+      : anonKey && !isPlaceholder(anonKey)
+        ? anonKey
+        : null;
+  if (!key) throw new Error("Supabase credentials not configured.");
   return createAdminClient<Database>(url, key, { auth: { persistSession: false } });
+}
+
+type UnlockLeadPayload = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  url?: string | null;
+  project_type?: string | null;
+  message?: string | null;
+  source?: string | null;
+  /** form = homeowner PII; permit = open-data job signal */
+  lead_kind?: "form" | "permit";
+  address?: string | null;
+  permit_number?: string | null;
+  maps_url?: string | null;
+};
+
+function buildMapsUrl(address?: string | null, city?: string | null): string | null {
+  const q = [address, city, "Canada"].filter(Boolean).join(", ").trim();
+  if (!q || q === "Canada") return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
 function dbTierToPlanId(tier: string | null | undefined): string {
@@ -23,284 +59,460 @@ function dbTierToPlanId(tier: string | null | undefined): string {
   return "starter";
 }
 
+
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-
-  // 1. Auth check
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // 2. Parse body
-  let leadId: string;
   try {
-    const body = await req.json() as { leadId?: unknown };
-    if (!body.leadId || typeof body.leadId !== "string") throw new Error("missing leadId");
-    leadId = body.leadId;
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid request body. Provide { leadId: string }." },
-      { status: 400 }
-    );
-  }
+    const supabase = await createClient();
 
-  // 3. Fetch profile using admin client so we get the full row even if the
-  //    user's anon session doesn't yet have a matching RLS policy for new fields.
-  const admin = getAdminClient();
-  const { data: profile, error: profileErr } = await admin
-    .from("profiles")
-    .select("subscription_tier")
-    .eq("id", user.id)
-    .single();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  if (profileErr || !profile) {
-    console.error("[unlock] profile fetch error", profileErr?.message);
-    return NextResponse.json({ error: "Profile not found." }, { status: 404 });
-  }
-
-  // 4. Fetch subscription plan to get lead_limit
-  const rawTier = profile.subscription_tier ?? "starter";
-  const planId = dbTierToPlanId(rawTier);
-  const { data: plan } = await admin
-    .from("subscription_plans")
-    .select("lead_limit")
-    .eq("id", planId)
-    .single();
-
-  const leadLimit: number | null = plan?.lead_limit ?? null;
-
-  // Normalize tier for logic checks
-  const { normalizeTier } = await import("@/lib/leadEligibility");
-  const testAccess = user.email === "brandonlacoste9@gmail.com";
-  const tier = testAccess ? "elite" : normalizeTier(rawTier);
-  const isFree = (!rawTier || rawTier === "" || rawTier === "free") && !testAccess;
-
-  if (isFree) {
-    return NextResponse.json(
-      { error: "UPGRADE_REQUIRED", message: "You are on the free tier. Please subscribe to a paid plan to unlock real leads." },
-      { status: 403 }
-    );
-  }
-
-  // 5. If the plan has a cap, count this contractor's monthly unlocks
-  if (leadLimit !== null) {
-    const startOfMonth = new Date();
-    startOfMonth.setUTCDate(1);
-    startOfMonth.setUTCHours(0, 0, 0, 0);
-
-    const { count, error: countErr } = await admin
-      .from("lead_unlocks")
-      .select("id", { count: "exact", head: true })
-      .eq("contractor_id", user.id)
-      .gte("unlocked_at", startOfMonth.toISOString());
-
-    if (countErr) {
-      console.error("[unlock] count error", countErr.message);
+    let leadId: string;
+    try {
+      const body = (await req.json()) as { leadId?: unknown };
+      if (!body.leadId || typeof body.leadId !== "string") throw new Error("missing leadId");
+      leadId = body.leadId;
+    } catch {
       return NextResponse.json(
-        { error: "Could not verify unlock count." },
-        { status: 500 }
+        { error: "Invalid request body. Provide { leadId: string }." },
+        { status: 400 }
       );
     }
 
-    if ((count ?? 0) >= leadLimit) {
+    // Demo / mock cards use non-UUID ids
+    if (leadId.startsWith("mock-")) {
       return NextResponse.json(
         {
-          error: "LIMIT_REACHED",
-          message: `You've reached your monthly limit of ${leadLimit} lead unlock${leadLimit === 1 ? "" : "s"}. Upgrade your plan to unlock more.`,
-          current: count,
-          limit: leadLimit,
+          error: "UPGRADE_REQUIRED",
+          message:
+            "This is a demo lead. Subscribe to a paid plan to unlock real homeowner and permit leads.",
         },
         { status: 403 }
       );
     }
-  }
 
-  // 6. Insert the unlock — UNIQUE constraint prevents duplicates
-  const { error: insertErr } = await admin
-    .from("lead_unlocks")
-    .insert({ contractor_id: user.id, lead_id: leadId });
+    const admin = getAdminClient();
 
-  if (insertErr) {
-    if (insertErr.code === "23505") {
-      // Already unlocked — return the lead data anyway
-      let existingLeadData = null;
-      const { data: existingRegularLeadContact } = await admin
-        .from("lead_contacts")
-        .select("name, email, phone")
-        .eq("lead_id", leadId)
-        .single();
-        
-      if (existingRegularLeadContact) {
-        const { data: leadBase } = await admin
-          .from("leads")
-          .select("id, message, city, project_type")
-          .eq("id", leadId)
-          .single();
-        existingLeadData = (leadBase && existingRegularLeadContact) ? { ...leadBase, ...existingRegularLeadContact } : null;
-      } else {
-        const { data: existingScrapedLead } = await admin
-          .from("scraped_inventory")
-          .select("id, title, location, url, permit_number, city, enriched_name, enriched_email, enriched_phone")
-          .eq("id", leadId)
-          .single();
-          
-        if (existingScrapedLead) {
-          existingLeadData = {
-             id: existingScrapedLead.id,
-             name: existingScrapedLead.enriched_name || (tier === "elite" ? `Verified Owner (Permit ${existingScrapedLead.permit_number || "N/A"})` : `Permit: ${existingScrapedLead.permit_number || "Open Data"}`),
-             city: existingScrapedLead.city,
-             url: existingScrapedLead.url,
-             email: existingScrapedLead.enriched_email,
-             phone: existingScrapedLead.enriched_phone || (tier === "elite" && !existingScrapedLead.enriched_name ? `(Previously enriched — click to re-fetch)` : null)
-          };
-        }
-      }
-      
+    // ── Profile + tier ─────────────────────────────────────────────────────
+    const { data: profile, error: profileErr } = await admin
+      .from("profiles")
+      .select("subscription_tier, city, services")
+      .eq("id", user.id)
+      .single();
+
+    if (profileErr || !profile) {
+      console.error("[unlock] profile fetch error", profileErr?.message);
       return NextResponse.json(
-        { error: "ALREADY_UNLOCKED", message: "You've already unlocked this lead.", lead: existingLeadData ?? null },
-        { status: 409 }
+        {
+          error: "PROFILE_NOT_FOUND",
+          message: "Complete your contractor profile before unlocking leads.",
+        },
+        { status: 404 }
       );
     }
-    console.error("[unlock] insert error", insertErr.message);
-    return NextResponse.json(
-      { error: "Could not unlock lead. Please try again." },
-      { status: 500 }
-    );
-  }
 
-  // 7. Return the lead contact details
-  let leadData = null;
+    const rawTier = profile.subscription_tier ?? "free";
+    const testAccess = user.email === "brandonlacoste9@gmail.com";
+    const tier = testAccess ? "elite" : normalizeTier(rawTier);
+    const isFree =
+      (!rawTier || rawTier === "" || rawTier === "free") && !testAccess;
 
-  // First try to fetch from regular leads
-  const { data: regularLeadContact } = await admin
-    .from("lead_contacts")
-    .select("name, email, phone")
-    .eq("lead_id", leadId)
-    .single();
-    
-  if (regularLeadContact) {
-    const { data: leadBase } = await admin
+    if (isFree) {
+      return NextResponse.json(
+        {
+          error: "UPGRADE_REQUIRED",
+          message:
+            "You are on the free tier. Subscribe to a paid plan to unlock real leads.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Resolve plan limit — support starter/engine/dominator + normalized aliases
+    const planIds = Array.from(new Set([dbTierToPlanId(rawTier), rawTier, tier, "starter", "engine", "dominator", "pro", "elite"]));
+    let leadLimit: number | null = null;
+    for (const planId of planIds) {
+      const { data: plan } = await admin
+        .from("subscription_plans")
+        .select("lead_limit")
+        .eq("id", planId)
+        .maybeSingle();
+      if (plan) {
+        leadLimit = plan.lead_limit;
+        break;
+      }
+    }
+    // elite / dominator → unlimited when no row match
+    if (tier === "elite") leadLimit = null;
+
+    if (leadLimit !== null) {
+      const startOfMonth = new Date();
+      startOfMonth.setUTCDate(1);
+      startOfMonth.setUTCHours(0, 0, 0, 0);
+
+      const { count, error: countErr } = await admin
+        .from("lead_unlocks")
+        .select("id", { count: "exact", head: true })
+        .eq("contractor_id", user.id)
+        .gte("unlocked_at", startOfMonth.toISOString());
+
+      if (countErr) {
+        console.error("[unlock] count error", countErr.message);
+        return NextResponse.json(
+          { error: "Could not verify unlock count.", message: countErr.message },
+          { status: 500 }
+        );
+      }
+
+      if ((count ?? 0) >= leadLimit) {
+        return NextResponse.json(
+          {
+            error: "LIMIT_REACHED",
+            message: `You've reached your monthly limit of ${leadLimit} unlock${leadLimit === 1 ? "" : "s"}. Upgrade to unlock more.`,
+            current: count,
+            limit: leadLimit,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // ── Resolve lead: marketplace `leads` OR municipal `scraped_inventory` ─
+    let unlockLeadId = leadId;
+    let payload: UnlockLeadPayload | null = null;
+
+    const { data: formLead } = await admin
       .from("leads")
-      .select("id, message, city, project_type")
+      .select("id, name, email, phone, city, project_type, message, source, score")
       .eq("id", leadId)
-      .single();
-    leadData = (leadBase && regularLeadContact) ? { ...leadBase, ...regularLeadContact } : null;
-  } else {
-    // If not in leads, try scraped_inventory (Firecrawl leads)
-    const { data: scrapedLead } = await admin
-      .from("scraped_inventory")
-      .select("id, title, location, url, permit_number, city, enriched_name, enriched_email, enriched_phone")
-      .eq("id", leadId)
-      .single();
-      
-    if (scrapedLead) {
-      // Both Starter and Elite can unlock Municipal Intel now.
-      // (Used to block Starter, but user requirements changed)
-      
-      // Base info for all paid tiers
-      leadData = {
-        id: scrapedLead.id,
-        name: `Permit: ${scrapedLead.permit_number || "Open Data"}`,
-        city: scrapedLead.city,
-        url: scrapedLead.url,
-        // No email for municipal data
-        email: null,
-        phone: null as string | null
+      .maybeSingle();
+
+    if (formLead) {
+      unlockLeadId = formLead.id;
+      const isScrapedRow = formLead.source === "scraped";
+      // Parse address/permit from scrape intel message when present
+      const msg = formLead.message || "";
+      const parsedAddr = msg.match(/Location:\s*(.+)/i)?.[1]?.trim() || null;
+      const parsedPermit = msg.match(/Permit\s*#:\s*(.+)/i)?.[1]?.trim() || null;
+      const sourceLine = msg.match(/Source:\s*(.+)/i)?.[1]?.trim() || null;
+
+      payload = {
+        id: formLead.id,
+        name: formLead.name,
+        email: isScrapedRow ? null : formLead.email,
+        phone: isScrapedRow ? null : formLead.phone,
+        city: formLead.city,
+        project_type: formLead.project_type,
+        message: formLead.message,
+        source: formLead.source,
+        lead_kind: isScrapedRow ? "permit" : "form",
+        address: parsedAddr,
+        permit_number: parsedPermit,
+        url: isScrapedRow ? sourceLine : null,
+        maps_url: buildMapsUrl(parsedAddr, formLead.city),
       };
 
-      // Full AI Enrichment for Elite — Apollo.io People Search + Enrichment
-      if (tier === "elite") {
-        const apolloKey = process.env.APOLLO_API_KEY;
-        let enrichedName: string | null = null;
-        let enrichedPhone: string | null = null;
-        let enrichedEmail: string | null = null;
+      // Optional partitioned contacts table (may not exist in production)
+      if (!isScrapedRow) {
+        try {
+          const { data: contact, error: contactErr } = await admin
+            .from("lead_contacts")
+            .select("name, email, phone")
+            .eq("lead_id", leadId)
+            .maybeSingle();
+          if (!contactErr && contact) {
+            payload.name = contact.name || payload.name;
+            payload.email = contact.email || payload.email;
+            payload.phone = contact.phone || payload.phone;
+          }
+        } catch {
+          /* table missing — PII is on leads row */
+        }
+      }
+    } else {
+      // Municipal inventory card (id is scraped_inventory.id)
+      // Live columns: address/source_url/title/… — NOT location/url/enriched_*
+      const { data: scraped, error: scrapedErr } = await admin
+        .from("scraped_inventory")
+        .select(
+          "id, title, address, source_url, permit_number, city, province, project_type, description, estimated_value, applicant_name, source"
+        )
+        .eq("id", leadId)
+        .maybeSingle();
 
-        if (apolloKey && (scrapedLead.city || scrapedLead.title)) {
-          try {
-            // Refined Apollo search:
-            // If the title looks like a company name (often is in permits), use organization name
-            // Otherwise use city-based people search
-            const searchParams: Record<string, unknown> = {
-              per_page: 1,
-              page: 1,
-            };
+      if (scrapedErr) {
+        console.error("[unlock] scraped_inventory select error", scrapedErr.message);
+        return NextResponse.json(
+          {
+            error: "UNLOCK_FAILED",
+            message: `Could not load permit lead: ${scrapedErr.message}`,
+          },
+          { status: 500 }
+        );
+      }
 
-            if (scrapedLead.title && scrapedLead.title.length > 5) {
-              searchParams.q_organization_name = scrapedLead.title;
-            } else if (scrapedLead.city) {
-              searchParams.person_locations = [scrapedLead.city];
-            }
+      if (!scraped) {
+        return NextResponse.json(
+          {
+            error: "LEAD_NOT_FOUND",
+            message:
+              "Lead not found. Refresh the marketplace and try a current listing.",
+          },
+          { status: 404 }
+        );
+      }
 
-            const searchRes = await fetch("https://api.apollo.io/api/v1/mixed_people/api_search", {
+      // lead_unlocks.lead_id should reference leads — ensure a lead row exists
+      const syntheticEmail = `permit+${String(scraped.permit_number || scraped.id)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .slice(0, 40)}@scraped.trades-canada.local`;
+
+      const { data: existingLinked } = await admin
+        .from("leads")
+        .select("id, name, email, phone, city, project_type, message, source")
+        .eq("source", "scraped")
+        .eq("email", syntheticEmail)
+        .maybeSingle();
+
+      const displayName =
+        (scraped as { applicant_name?: string | null }).applicant_name ||
+        (scraped.permit_number
+          ? `Permit ${scraped.permit_number}`
+          : `Job site — ${scraped.city || "Canada"}`);
+
+      const intelMessage = [
+        scraped.title,
+        scraped.address ? `Location: ${scraped.address}` : null,
+        scraped.permit_number ? `Permit #: ${scraped.permit_number}` : null,
+        scraped.description,
+        scraped.source_url || scraped.source
+          ? `Source: ${scraped.source_url || scraped.source}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 900);
+
+      if (existingLinked) {
+        unlockLeadId = existingLinked.id;
+        payload = {
+          id: existingLinked.id,
+          name: displayName || existingLinked.name,
+          email: null, // open data — no owner email
+          phone: null,
+          city: scraped.city || existingLinked.city,
+          url: scraped.source_url,
+          project_type: scraped.project_type || existingLinked.project_type,
+          message: intelMessage || existingLinked.message,
+          source: "scraped",
+          lead_kind: "permit",
+          address: scraped.address,
+          permit_number: scraped.permit_number,
+          maps_url: buildMapsUrl(scraped.address, scraped.city),
+        };
+      } else {
+        const validTypes = [
+          "hvac",
+          "roofing",
+          "landscaping",
+          "renovations",
+          "plumbing",
+          "electrical",
+          "general",
+          "other",
+        ] as const;
+        const pt = validTypes.includes(
+          String(scraped.project_type) as (typeof validTypes)[number]
+        )
+          ? (scraped.project_type as (typeof validTypes)[number])
+          : "general";
+
+        const { data: created, error: createErr } = await admin
+          .from("leads")
+          .insert({
+            name: `Permit Lead — ${scraped.city || "CA"}${
+              scraped.permit_number ? ` #${scraped.permit_number}` : ""
+            }`,
+            email: syntheticEmail,
+            phone: null,
+            project_type: pt,
+            language: "en",
+            city: scraped.city,
+            source: "scraped",
+            status: "new",
+            score: scraped.estimated_value
+              ? Math.min(
+                  95,
+                  Math.max(40, Math.round(Number(scraped.estimated_value) / 5000))
+                )
+              : 55,
+            message: intelMessage,
+          })
+          .select("id, name, email, phone, city, project_type, message, source")
+          .single();
+
+        if (createErr || !created) {
+          console.error("[unlock] promote inventory→lead failed", createErr?.message);
+          return NextResponse.json(
+            {
+              error: "UNLOCK_FAILED",
+              message:
+                createErr?.message ||
+                "Could not prepare this permit lead for unlock. Please try again.",
+            },
+            { status: 500 }
+          );
+        }
+
+        unlockLeadId = created.id;
+        payload = {
+          id: created.id,
+          name: displayName,
+          email: null,
+          phone: null,
+          city: created.city,
+          url: scraped.source_url,
+          project_type: created.project_type,
+          message: created.message,
+          source: "scraped",
+          lead_kind: "permit",
+          address: scraped.address,
+          permit_number: scraped.permit_number,
+          maps_url: buildMapsUrl(scraped.address, scraped.city),
+        };
+      }
+
+      // Optional Apollo — only if key set; never fail unlock if enrichment fails
+      if (tier === "elite" && process.env.APOLLO_API_KEY && payload) {
+        try {
+          const apolloKey = process.env.APOLLO_API_KEY!;
+          const searchParams: Record<string, unknown> = { per_page: 1, page: 1 };
+          if (scraped.address) searchParams.q_keywords = scraped.address;
+          else if (scraped.city) searchParams.person_locations = [scraped.city];
+
+          const searchRes = await fetch(
+            "https://api.apollo.io/api/v1/mixed_people/api_search",
+            {
               method: "POST",
-              headers: { "Content-Type": "application/json", "x-api-key": apolloKey },
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apolloKey,
+              },
               body: JSON.stringify(searchParams),
-            });
-
-            if (searchRes.ok) {
-              const searchData = await searchRes.json() as {
-                people?: Array<{ id?: string; first_name?: string; last_name?: string; name?: string }>;
-              };
-              const topMatch = searchData.people?.[0];
-
-              if (topMatch?.id) {
-                // Step 2: Enrich the top match
-                const enrichRes = await fetch("https://api.apollo.io/api/v1/people/match", {
+            }
+          );
+          if (searchRes.ok) {
+            const searchData = (await searchRes.json()) as {
+              people?: Array<{ id?: string }>;
+            };
+            const topId = searchData.people?.[0]?.id;
+            if (topId) {
+              const enrichRes = await fetch(
+                "https://api.apollo.io/api/v1/people/match",
+                {
                   method: "POST",
-                  headers: { "Content-Type": "application/json", "x-api-key": apolloKey },
-                  body: JSON.stringify({ id: topMatch.id }),
-                });
-
-                if (enrichRes.ok) {
-                  const enrichData = await enrichRes.json() as {
-                    person?: {
-                      name?: string;
-                      first_name?: string;
-                      last_name?: string;
-                      phone_numbers?: Array<{ sanitized_number?: string }>;
-                      email?: string;
-                    };
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-api-key": apolloKey,
+                  },
+                  body: JSON.stringify({ id: topId }),
+                }
+              );
+              if (enrichRes.ok) {
+                const enrichData = (await enrichRes.json()) as {
+                  person?: {
+                    name?: string;
+                    first_name?: string;
+                    last_name?: string;
+                    email?: string;
+                    phone_numbers?: Array<{ sanitized_number?: string }>;
                   };
-                  const person = enrichData.person;
-                  if (person) {
-                    enrichedName = person.name || `${person.first_name || ""} ${person.last_name || ""}`.trim() || null;
-                    enrichedPhone = person.phone_numbers?.[0]?.sanitized_number || null;
-                    enrichedEmail = person.email || null;
+                };
+                const person = enrichData.person;
+                if (person) {
+                  const name =
+                    person.name ||
+                    `${person.first_name || ""} ${person.last_name || ""}`.trim();
+                  if (name) payload.name = name;
+                  if (person.email) payload.email = person.email;
+                  if (person.phone_numbers?.[0]?.sanitized_number) {
+                    payload.phone = person.phone_numbers[0].sanitized_number;
                   }
                 }
               }
             }
-          } catch (apolloErr) {
-            console.warn("[unlock] Apollo enrichment failed:", apolloErr instanceof Error ? apolloErr.message : apolloErr);
           }
-        }
-
-        // Apply enriched data
-        if (enrichedName) {
-           leadData.name = `${enrichedName} (${scrapedLead.title || "Permit Owner"})`;
-        }
-        leadData.phone = enrichedPhone ? `${enrichedPhone} (Verified)` : null;
-        if (enrichedEmail) {
-          (leadData as Record<string, unknown>).email = enrichedEmail;
-        }
-
-        // PERSIST ENRICHMENT
-        if (enrichedName || enrichedPhone || enrichedEmail) {
-          await admin.from("scraped_inventory").update({
-            enriched_name: enrichedName,
-            enriched_phone: enrichedPhone,
-            enriched_email: enrichedEmail,
-            enriched_at: new Date().toISOString()
-          }).eq("id", leadId);
+        } catch (apolloErr) {
+          console.warn(
+            "[unlock] Apollo enrichment skipped:",
+            apolloErr instanceof Error ? apolloErr.message : apolloErr
+          );
         }
       }
     }
-  }
 
-  if (!leadData) {
-    return NextResponse.json({ error: "Lead not found." }, { status: 404 });
-  }
+    if (!payload) {
+      return NextResponse.json(
+        { error: "LEAD_NOT_FOUND", message: "Lead not found." },
+        { status: 404 }
+      );
+    }
 
-  return NextResponse.json({ success: true, lead: leadData });
+    // ── Record unlock (idempotent) ───────────────────────────────────────
+    const { error: insertErr } = await admin.from("lead_unlocks").insert({
+      contractor_id: user.id,
+      lead_id: unlockLeadId,
+    });
+
+    if (insertErr) {
+      if (insertErr.code === "23505") {
+        // Already unlocked — still return contact payload
+        return NextResponse.json({
+          success: true,
+          alreadyUnlocked: true,
+          lead: payload,
+        });
+      }
+      console.error("[unlock] insert error", insertErr.code, insertErr.message);
+      return NextResponse.json(
+        {
+          error: "UNLOCK_FAILED",
+          message: insertErr.message || "Could not unlock lead. Please try again.",
+          code: insertErr.code,
+        },
+        { status: 500 }
+      );
+    }
+
+    // Never surface synthetic scrape emails as callable contact
+    if (
+      payload.email &&
+      payload.email.includes("@scraped.trades-canada.local")
+    ) {
+      payload = {
+        ...payload,
+        email: null,
+        lead_kind: "permit",
+      };
+    }
+
+    // Ensure maps URL when address known
+    if (!payload.maps_url && (payload.address || payload.city)) {
+      payload.maps_url = buildMapsUrl(payload.address, payload.city);
+    }
+
+    return NextResponse.json({ success: true, lead: payload });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Internal server error";
+    console.error("[unlock] unexpected", message);
+    return NextResponse.json(
+      { error: "UNLOCK_FAILED", message },
+      { status: 500 }
+    );
+  }
 }

@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { MapPin, TrendingUp, FileText, DollarSign, CheckCircle, ArrowRight, Search, Target, Zap, CalendarDays } from "lucide-react";
+import {
+  MapPin,
+  TrendingUp,
+  FileText,
+  DollarSign,
+  CheckCircle,
+  ArrowRight,
+  Phone,
+  Clock,
+  ShieldCheck,
+} from "lucide-react";
 import { isValidLang, t, type Lang } from "@/lib/i18n";
 import { getCityBySlug, getAllCitySlugs } from "@/lib/cityData";
 import Navbar from "@/components/shared/Navbar";
@@ -22,13 +32,14 @@ export async function generateMetadata({ params }: CityPageProps): Promise<Metad
   const cityName = isFr ? city.nameFr : city.name;
   const province = isFr ? city.provinceFr : city.province;
 
+  // Homeowner-intent SEO (ads + organic) — not contractor SaaS copy
   const title = isFr
-    ? `Entrepreneurs de ${cityName} — Génération de leads bilingue | Trades-Canada`
-    : `${cityName} Contractors — Bilingual Lead Generation | Trades-Canada`;
+    ? `Soumissions gratuites — entrepreneurs à ${cityName}, ${province} | Trades-Canada`
+    : `Free Contractor Quotes in ${cityName}, ${province} | Trades-Canada`;
 
   const description = isFr
-    ? `Obtenez plus de leads en tant qu'entrepreneur à ${cityName}, ${province}. Réseau de leads bilingue, automatisation et génération de leads pour les métiers de ${cityName}.`
-    : `Get more leads as a contractor in ${cityName}, ${province}. Bilingual lead network, automation, and real-time alerts built for ${cityName} trades.`;
+    ? `Obtenez des soumissions gratuites de plombiers, électriciens, toiture et rénovation à ${cityName}. Formulaires rapides — entrepreneurs locaux licenciés vous appellent.`
+    : `Get free quotes from plumbers, electricians, roofers & renovators in ${cityName}. Fast form — local licensed contractors call you back.`;
 
   return {
     title,
@@ -55,11 +66,22 @@ export async function generateStaticParams() {
   return langs.flatMap((lang) => slugs.map((slug) => ({ lang, slug })));
 }
 
-const cityFeatures = [
-  { icon: Search, en: "Bilingual Lead Network", fr: "Réseau de leads bilingue" },
-  { icon: Target, en: "AI Lead Targeting", fr: "Ciblage de leads par IA" },
-  { icon: Zap, en: "Smart Automation", fr: "Automatisation intelligente" },
-  { icon: CalendarDays, en: "Planexa Scheduling", fr: "Planification Planexa" },
+const trustPoints = [
+  {
+    icon: Phone,
+    en: "Local contractors call you",
+    fr: "Des entrepreneurs locaux vous appellent",
+  },
+  {
+    icon: Clock,
+    en: "Usually same-day response",
+    fr: "Réponse souvent le jour même",
+  },
+  {
+    icon: ShieldCheck,
+    en: "Free for homeowners — no obligation",
+    fr: "Gratuit pour les propriétaires — sans engagement",
+  },
 ];
 
 export default async function CityPage({ params }: CityPageProps) {
@@ -71,12 +93,10 @@ export default async function CityPage({ params }: CityPageProps) {
   const l = lang as Lang;
   const cityName = l === "fr" ? city.nameFr : city.name;
   const province = l === "fr" ? city.provinceFr : city.province;
-  const description = city.description[l];
   const trades = l === "fr" ? city.tradesFr : city.trades;
 
   return (
     <>
-      {/* AI SEO: Full city schema with LocalBusiness + FAQPage for LLM citations */}
       <CitySchema
         cityName={cityName}
         citySlug={slug}
@@ -87,46 +107,76 @@ export default async function CityPage({ params }: CityPageProps) {
       <div className="min-h-screen flex flex-col">
         <Navbar lang={l} />
         <main className="flex-1 pt-24">
-          {/* Hero */}
-          <section className="relative py-20 overflow-hidden">
+          {/* Homeowner hero — form above the fold on desktop */}
+          <section className="relative py-16 sm:py-20 overflow-hidden">
             <div className="absolute inset-0 bg-hero-gradient" />
             <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-50" />
             <div className="absolute inset-0 bg-amber-glow-sm" />
             <div className="section-container relative z-10">
-              <div className="max-w-4xl">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="badge-amber">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {t("city.badge", l)}
-                  </span>
-                </div>
-                <h1 className="heading-xl mb-6">
-                  <span className="text-gradient-amber">{cityName}</span>{" "}
-                  <span className="text-foreground">
-                    {l === "en" ? "Contractor Leads" : "Leads pour entrepreneurs"}
-                  </span>
-                </h1>
-                <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl leading-relaxed mb-8">
-                  {description}
-                </p>
-                <div className="flex flex-wrap gap-3 mb-10">
-                  {trades.map((trade) => (
-                    <span key={trade} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-muted-foreground">
-                      <CheckCircle className="w-3.5 h-3.5 text-amber-500" />
-                      {trade}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-start max-w-6xl mx-auto">
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="badge-amber">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {cityName}, {province}
                     </span>
-                  ))}
+                  </div>
+                  <h1 className="heading-xl mb-6">
+                    {l === "en" ? (
+                      <>
+                        Free contractor quotes in{" "}
+                        <span className="text-gradient-amber">{cityName}</span>
+                      </>
+                    ) : (
+                      <>
+                        Soumissions gratuites à{" "}
+                        <span className="text-gradient-amber">{cityName}</span>
+                      </>
+                    )}
+                  </h1>
+                  <p className="text-muted-foreground text-lg sm:text-xl max-w-xl leading-relaxed mb-8">
+                    {l === "en"
+                      ? `Need a plumber, electrician, roofer, or renovator in ${cityName}? Submit once — matched local trades contact you with quotes.`
+                      : `Besoin d'un plombier, électricien, couvreur ou rénovateur à ${cityName}? Une demande — des métiers locaux vous contactent.`}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-8">
+                    {trades.map((trade) => (
+                      <span
+                        key={trade}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-muted-foreground"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5 text-amber-500" />
+                        {trade}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="space-y-3 mb-8">
+                    {trustPoints.map(({ icon: Icon, en, fr }) => (
+                      <div key={en} className="flex items-center gap-3 text-sm text-foreground/90">
+                        <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                          <Icon className="w-4 h-4 text-amber-400" />
+                        </div>
+                        {l === "fr" ? fr : en}
+                      </div>
+                    ))}
+                  </div>
+                  <a
+                    href="#get-quote"
+                    className="btn-amber text-base px-8 py-4 inline-flex lg:hidden"
+                  >
+                    {l === "en" ? "Get free quotes" : "Obtenir des soumissions"}
+                    <ArrowRight className="w-5 h-5" />
+                  </a>
                 </div>
-                <Link href={`/${l}/booking`} className="btn-amber text-base px-8 py-4 inline-flex">
-                  {t("city.cta", l)} {cityName}
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
+
+                {/* Primary conversion: homeowner form with city pre-set */}
+                <LeadForm lang={l} city={cityName} variant="homeowner" />
               </div>
             </div>
           </section>
 
-          {/* Stats */}
-          <section className="py-16 border-t border-b border-white/[0.04]">
+          {/* Light social proof / market stats */}
+          <section className="py-14 border-t border-b border-white/[0.04]">
             <div className="section-container">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
                 {[
@@ -146,31 +196,26 @@ export default async function CityPage({ params }: CityPageProps) {
             </div>
           </section>
 
-          {/* Features + Form */}
-          <section className="py-20">
-            <div className="section-container">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
-                <div>
-                  <h2 className="heading-md mb-6">
-                    {l === "en"
-                      ? `The Engine for ${cityName} Contractors`
-                      : `Le moteur pour les entrepreneurs de ${cityName}`}
-                  </h2>
-                  <div className="space-y-4">
-                    {cityFeatures.map(({ icon: Icon, en, fr }) => (
-                      <div key={en} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.05]">
-                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                          <Icon className="w-5 h-5 text-amber-400" />
-                        </div>
-                        <div>
-                          <p className="font-display font-semibold text-sm text-foreground">{l === "fr" ? fr : en}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <LeadForm lang={l} />
-              </div>
+          {/* Contractor secondary CTA — not the primary path for ads */}
+          <section className="py-16">
+            <div className="section-container max-w-3xl text-center">
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">
+                {l === "en" ? "For contractors" : "Pour les entrepreneurs"}
+              </p>
+              <h2 className="heading-md mb-4">
+                {l === "en"
+                  ? `Run jobs in ${cityName}?`
+                  : `Vous travaillez à ${cityName}?`}
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                {l === "en"
+                  ? "Claim exclusive homeowner contacts and municipal permit radar for your trade."
+                  : "Réclamez des contacts propriétaires exclusifs et le radar de permis pour votre métier."}
+              </p>
+              <Link href={`/${l}/join`} className="btn-outline-amber inline-flex">
+                {l === "en" ? "Join as a contractor" : "Joindre comme entrepreneur"}
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </section>
         </main>

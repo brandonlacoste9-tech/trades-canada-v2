@@ -15,6 +15,7 @@ export interface MockLead {
   createdAt: string;
   isUnlocked: false;
   isMock: true;
+  leadKind: "demo";
 }
 
 const now = Date.now();
@@ -36,6 +37,7 @@ export function getMockLeads(lang: "en" | "fr"): MockLead[] {
       createdAt: new Date(now - 2 * hour).toISOString(),
       isUnlocked: false,
       isMock: true,
+      leadKind: "demo",
     },
     {
       id: "mock-002",
@@ -50,6 +52,7 @@ export function getMockLeads(lang: "en" | "fr"): MockLead[] {
       createdAt: new Date(now - 5 * hour).toISOString(),
       isUnlocked: false,
       isMock: true,
+      leadKind: "demo",
     },
     {
       id: "mock-003",
@@ -64,6 +67,7 @@ export function getMockLeads(lang: "en" | "fr"): MockLead[] {
       createdAt: new Date(now - 1 * day).toISOString(),
       isUnlocked: false,
       isMock: true,
+      leadKind: "demo",
     },
     {
       id: "mock-004",
@@ -78,6 +82,7 @@ export function getMockLeads(lang: "en" | "fr"): MockLead[] {
       createdAt: new Date(now - 1.5 * day).toISOString(),
       isUnlocked: false,
       isMock: true,
+      leadKind: "demo",
     },
     {
       id: "mock-005",
@@ -92,6 +97,7 @@ export function getMockLeads(lang: "en" | "fr"): MockLead[] {
       createdAt: new Date(now - 2 * day).toISOString(),
       isUnlocked: false,
       isMock: true,
+      leadKind: "demo",
     },
     {
       id: "mock-006",
@@ -106,6 +112,7 @@ export function getMockLeads(lang: "en" | "fr"): MockLead[] {
       createdAt: new Date(now - 3 * day).toISOString(),
       isUnlocked: false,
       isMock: true,
+      leadKind: "demo",
     },
   ];
 }

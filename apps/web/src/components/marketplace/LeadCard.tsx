@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { Lang, useTranslations } from "@/lib/i18n";
 import { motion, AnimatePresence } from "framer-motion";
 
+export type LeadKind = "form" | "permit" | "demo";
+
 interface LeadCardProps {
   id: string;
   title: string;
@@ -44,6 +46,10 @@ interface LeadCardProps {
   url?: string;
   lang?: Lang;
   isMock?: boolean;
+  /** form = homeowner contact; permit = open-data job signal; demo = free tier */
+  leadKind?: LeadKind;
+  permitNumber?: string | null;
+  address?: string | null;
 }
 
 interface UnlockedContact {
@@ -51,6 +57,19 @@ interface UnlockedContact {
   email?: string | null;
   phone?: string | null;
   url?: string | null;
+  message?: string | null;
+  city?: string | null;
+  project_type?: string | null;
+  lead_kind?: LeadKind | null;
+  address?: string | null;
+  permit_number?: string | null;
+  maps_url?: string | null;
+}
+
+function mapsSearchUrl(address?: string | null, location?: string | null): string | null {
+  const q = [address, location].filter(Boolean).join(", ").trim();
+  if (!q) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
 const projectTypeColor: Record<string, string> = {
@@ -79,8 +98,15 @@ const LeadCard: React.FC<LeadCardProps> = ({
   url: initialUrl,
   lang = "en",
   isMock = false,
+  leadKind: leadKindProp,
+  permitNumber: initialPermit,
+  address: initialAddress,
 }) => {
   const t = useTranslations(lang);
+  const inferredKind: LeadKind = isMock
+    ? "demo"
+    : leadKindProp ||
+      (/permit|municipal|permis/i.test(source) ? "permit" : "form");
   const [unlocked, setUnlocked] = useState(isUnlocked);
   const [isInspecting, setIsInspecting] = useState(false);
   const [contact, setContact] = useState<UnlockedContact>({
@@ -88,9 +114,22 @@ const LeadCard: React.FC<LeadCardProps> = ({
     email: initialEmail,
     phone: initialPhone,
     url: initialUrl,
+    address: initialAddress,
+    permit_number: initialPermit,
+    maps_url: mapsSearchUrl(initialAddress, location),
+    lead_kind: inferredKind === "demo" ? null : inferredKind,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const kind: LeadKind =
+    contact.lead_kind === "permit" || contact.lead_kind === "form"
+      ? contact.lead_kind
+      : inferredKind;
+  const isPermit = kind === "permit";
+  const displayAddress = contact.address || initialAddress || location;
+  const mapsHref =
+    contact.maps_url || mapsSearchUrl(contact.address || initialAddress, location);
 
   const relativeTime =
     typeof createdAt === "string"
@@ -127,7 +166,25 @@ const LeadCard: React.FC<LeadCardProps> = ({
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.error === "ALREADY_UNLOCKED") { setUnlocked(true); return; }
+        if (data.error === "ALREADY_UNLOCKED") {
+          setUnlocked(true);
+          if (data.lead) {
+            setContact({
+              name: data.lead.name,
+              email: data.lead.email,
+              phone: data.lead.phone,
+              url: data.lead.url,
+              message: data.lead.message,
+              city: data.lead.city,
+              project_type: data.lead.project_type,
+              lead_kind: data.lead.lead_kind,
+              address: data.lead.address,
+              permit_number: data.lead.permit_number,
+              maps_url: data.lead.maps_url,
+            });
+          }
+          return;
+        }
         if (data.error === "LIMIT_REACHED") {
           setError(
             lang === "en"
@@ -136,12 +193,39 @@ const LeadCard: React.FC<LeadCardProps> = ({
           );
           return;
         }
-        setError(data.message || (lang === "en" ? "Could not unlock lead." : "Impossible de déverrouiller."));
+        if (data.error === "UPGRADE_REQUIRED") {
+          setError(
+            data.message ||
+              (lang === "en"
+                ? "Subscribe to a paid plan to unlock real leads."
+                : "Abonnez-vous pour débloquer de vrais leads.")
+          );
+          return;
+        }
+        setError(
+          data.message ||
+            data.error ||
+            (lang === "en" ? "Could not unlock lead." : "Impossible de déverrouiller.")
+        );
         return;
       }
 
       setUnlocked(true);
-      if (data.lead) setContact({ name: data.lead.name, email: data.lead.email, phone: data.lead.phone, url: data.lead.url });
+      if (data.lead) {
+        setContact({
+          name: data.lead.name,
+          email: data.lead.email,
+          phone: data.lead.phone,
+          url: data.lead.url,
+          message: data.lead.message,
+          city: data.lead.city,
+          project_type: data.lead.project_type,
+          lead_kind: data.lead.lead_kind,
+          address: data.lead.address,
+          permit_number: data.lead.permit_number,
+          maps_url: data.lead.maps_url,
+        });
+      }
     } catch {
       setError(lang === "en" ? "Network error. Please try again." : "Erreur réseau. Veuillez réessayer.");
     } finally {
@@ -172,6 +256,22 @@ const LeadCard: React.FC<LeadCardProps> = ({
             <span className={cn("px-3 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border", typeColorClass)}>
               {projectType}
             </span>
+            {/* Honest product type badge */}
+            {kind === "form" && (
+              <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 text-[10px] font-black border border-emerald-500/25 uppercase tracking-widest">
+                <Phone size={10} /> {lang === "en" ? "Homeowner contact" : "Contact propriétaire"}
+              </span>
+            )}
+            {kind === "permit" && (
+              <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-500/15 text-sky-400 text-[10px] font-black border border-sky-500/25 uppercase tracking-widest">
+                <FileText size={10} /> {lang === "en" ? "Permit signal" : "Signal permis"}
+              </span>
+            )}
+            {kind === "demo" && (
+              <span className="px-2 py-1 rounded-lg bg-muted/40 text-muted-foreground text-[10px] font-black border border-border uppercase tracking-widest">
+                Demo
+              </span>
+            )}
             {unlocked && (
               <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/10 text-green-400 text-[10px] font-black border border-green-500/20 uppercase tracking-widest">
                 <CheckCircle2 size={10} /> {lang === "en" ? "Unlocked" : "Déverrouillé"}
@@ -238,70 +338,117 @@ const LeadCard: React.FC<LeadCardProps> = ({
 
         {/* ── Footer CTA ── */}
         <div className="px-6 pb-6 pt-2 flex items-center justify-between gap-4 relative z-10">
-          {/* Locked / unlocked contact preview */}
-          <div className="flex flex-col gap-0.5">
+          {/* Locked / unlocked preview */}
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
             <span className="text-[9px] text-muted-foreground/50 uppercase font-black tracking-widest">
-              {t("dashboard.verifiedContact")}
+              {isPermit
+                ? lang === "en"
+                  ? "Job-site intel"
+                  : "Intel chantier"
+                : t("dashboard.verifiedContact")}
             </span>
             {unlocked ? (
-              <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1">
-                {contact.name && (
+              <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1 max-w-[min(100%,320px)]">
+                {contact.name && !isPermit && (
                   <span className="flex items-center gap-2 text-sm font-bold text-foreground">
-                    <User size={14} className="text-primary" /> 
-                    {contact.name}
-                    {contact.name.includes("Verified") && (
-                      <span className="px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[8px] uppercase font-black tracking-tighter">AI Enriched</span>
-                    )}
+                    <User size={14} className="text-primary shrink-0" />
+                    <span className="truncate">{contact.name}</span>
                   </span>
                 )}
-                <div className="flex items-center gap-4">
-                  {contact.phone && (
-                    contact.phone === "[Requires Elite Upgrade]" ? (
-                      <span className="flex items-center gap-1.5 text-[10px] font-black text-amber-500/60 bg-amber-500/5 px-2 py-1 rounded-lg border border-amber-500/10 italic">
-                        <Zap size={10} /> 
-                        <span className="blur-[1px] select-none">555-000-0000</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-xs font-mono text-green-500 font-bold bg-green-500/5 px-2 py-1 rounded-lg border border-green-500/10">
+                {/* Always show street/city — primary value for permits */}
+                <span className="flex items-center gap-1.5 text-xs text-foreground/90 font-medium">
+                  <MapPin size={12} className="text-primary/70 shrink-0" />
+                  <span className="line-clamp-2">{displayAddress}</span>
+                </span>
+                {(contact.permit_number || initialPermit) && (
+                  <span className="text-[10px] font-mono text-sky-400 font-bold">
+                    #{contact.permit_number || initialPermit}
+                  </span>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {contact.phone &&
+                    !String(contact.phone).includes("open data") &&
+                    contact.phone !== "[Requires Elite Upgrade]" && (
+                      <a
+                        href={`tel:${contact.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 text-xs font-mono text-green-500 font-bold bg-green-500/5 px-2 py-1 rounded-lg border border-green-500/10 hover:bg-green-500/10"
+                      >
                         <Phone size={12} /> {contact.phone}
-                      </span>
-                    )
-                  )}
-                  {contact.email && (
-                    contact.email === "[Requires Elite Upgrade]" ? (
-                      <span className="flex items-center gap-1.5 text-[10px] font-black text-amber-500/60 bg-amber-500/5 px-2 py-1 rounded-lg border border-amber-500/10 italic">
-                        <Zap size={10} /> 
-                        <span className="blur-[1.5px] select-none">owner@email.com</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-xs font-mono text-blue-500 font-bold bg-blue-500/5 px-2 py-1 rounded-lg border border-blue-500/10">
+                      </a>
+                    )}
+                  {contact.email &&
+                    !contact.email.includes("@scraped.") &&
+                    !contact.email.includes("open data") &&
+                    contact.email !== "[Requires Elite Upgrade]" && (
+                      <a
+                        href={`mailto:${contact.email}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 text-xs font-mono text-blue-500 font-bold bg-blue-500/5 px-2 py-1 rounded-lg border border-blue-500/10 truncate max-w-[200px] hover:bg-blue-500/10"
+                      >
                         <Mail size={12} /> {contact.email}
-                      </span>
-                    )
+                      </a>
+                    )}
+                  {mapsHref && (
+                    <a
+                      href={mapsHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1.5 text-xs font-bold text-sky-400 bg-sky-500/10 px-2 py-1 rounded-lg border border-sky-500/20 hover:bg-sky-500/15"
+                    >
+                      <MapPin size={12} />
+                      {lang === "en" ? "Maps" : "Cartes"}
+                    </a>
                   )}
                 </div>
-                {contact.url && !contact.phone && !contact.email && (
-                  <a href={contact.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-bold text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
-                    <ExternalLink size={12} /> {lang === "en" ? "Review Permit Details" : "Voir détails du permis"}
+                {isPermit && !contact.phone && !contact.email && (
+                  <span className="text-[10px] text-muted-foreground leading-snug">
+                    {lang === "en"
+                      ? "Open data: address & scope only — no owner phone in city files. Door-knock / flyer from Maps."
+                      : "Données ouvertes: adresse et portée seulement — pas de téléphone. Porte-à-porte via Cartes."}
+                  </span>
+                )}
+                {contact.url && (
+                  <a
+                    href={contact.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs font-bold text-primary hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink size={12} />{" "}
+                    {lang === "en" ? "City permit record" : "Dossier permis municipal"}
                   </a>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-muted-foreground/30">
-                <Lock size={11} />
-                <span className="text-[10px] font-black tracking-widest uppercase">{t("dashboard.locked")}</span>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-muted-foreground/40">
+                  <Lock size={11} />
+                  <span className="text-[10px] font-black tracking-widest uppercase">
+                    {isPermit
+                      ? lang === "en"
+                        ? "Unlock address & permit #"
+                        : "Débloquer adresse et n° permis"
+                      : t("dashboard.locked")}
+                  </span>
+                </div>
+                {!isPermit && !isMock && (
+                  <span className="text-[10px] text-emerald-500/70 font-medium">
+                    {lang === "en" ? "Includes name, phone & email" : "Inclut nom, téléphone et courriel"}
+                  </span>
+                )}
               </div>
             )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {/* Click-to-view hint */}
             <span className="hidden sm:flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary/60 group-hover:text-primary transition-colors">
               <Eye size={12} />
               {lang === "en" ? "View Details" : "Voir détails"}
             </span>
 
-            {/* Unlock button */}
             <button
               onClick={handleUnlock}
               disabled={loading || unlocked}
@@ -319,11 +466,15 @@ const LeadCard: React.FC<LeadCardProps> = ({
               ) : unlocked ? (
                 <>
                   <CheckCircle2 size={13} />
-                  {lang === "en" ? "Claimed" : "Réclamé"}
+                  {lang === "en" ? "Unlocked" : "Déverrouillé"}
                 </>
               ) : (
                 <>
-                  {t("dashboard.unlockLead")}
+                  {isPermit
+                    ? lang === "en"
+                      ? "Unlock intel"
+                      : "Débloquer intel"
+                    : t("dashboard.unlockLead")}
                   <ChevronRight size={13} />
                 </>
               )}
@@ -392,8 +543,25 @@ const LeadCard: React.FC<LeadCardProps> = ({
                     <span className={cn("px-3 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border", typeColorClass)}>
                       {projectType}
                     </span>
-                    <span className="px-3 py-1 rounded-lg bg-muted/30 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {source}
+                    <span
+                      className={cn(
+                        "px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest",
+                        isPermit
+                          ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                          : kind === "form"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-muted/30 border-border text-muted-foreground"
+                      )}
+                    >
+                      {isPermit
+                        ? lang === "en"
+                          ? "Permit signal"
+                          : "Signal permis"
+                        : kind === "form"
+                          ? lang === "en"
+                            ? "Homeowner contact"
+                            : "Contact propriétaire"
+                          : source}
                     </span>
                     <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-muted-foreground tracking-widest">
                       <Clock size={11} /> {relativeTime}
@@ -418,11 +586,15 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   </p>
                   <div className="p-6 rounded-2xl bg-muted/20 border border-border/50 space-y-3">
                     <h1 className="text-2xl font-black leading-tight">{title}</h1>
-                    <p className="text-foreground/75 leading-relaxed text-sm">
+                    <p className="text-foreground/75 leading-relaxed text-sm whitespace-pre-line">
                       {description ||
-                        (lang === "en"
-                          ? "No detailed description provided. Contact the homeowner directly after unlocking."
-                          : "Aucune description fournie. Contactez le propriétaire après déverrouillage.")}
+                        (isPermit
+                          ? lang === "en"
+                            ? "Municipal open-data job signal. Unlock for full address, permit number, and Maps link. City files do not include owner phone."
+                            : "Signal de travaux (données ouvertes). Débloquez pour l'adresse, le n° de permis et Cartes. Les fichiers municipaux n'incluent pas le téléphone."
+                          : lang === "en"
+                            ? "No detailed description provided. Contact the homeowner directly after unlocking."
+                            : "Aucune description fournie. Contactez le propriétaire après déverrouillage.")}
                     </p>
                   </div>
                 </div>
@@ -435,9 +607,21 @@ const LeadCard: React.FC<LeadCardProps> = ({
                     </p>
                     <div className="flex items-center gap-2">
                       <MapPin size={16} className="text-blue-400 shrink-0" />
-                      <span className="font-black text-base truncate">{location}</span>
+                      <span className="font-black text-base line-clamp-2">{displayAddress}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground font-medium">Canada</p>
+                    {mapsHref ? (
+                      <a
+                        href={mapsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-sky-400 font-bold hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {lang === "en" ? "Open in Google Maps →" : "Ouvrir dans Google Maps →"}
+                      </a>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground font-medium">Canada</p>
+                    )}
                   </div>
 
                   <div className="p-5 rounded-2xl bg-muted/10 border border-border/50 space-y-2">
@@ -480,19 +664,73 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   </div>
                 </div>
 
-                {/* Contact preview — shown after unlock */}
+                {/* Unlocked intel / contact */}
                 {unlocked && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-6 rounded-2xl bg-green-500/8 border border-green-500/25 space-y-4"
+                    className={cn(
+                      "p-6 rounded-2xl border space-y-4",
+                      isPermit
+                        ? "bg-sky-500/8 border-sky-500/25"
+                        : "bg-green-500/8 border-green-500/25"
+                    )}
                   >
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400 flex items-center gap-2">
+                    <p
+                      className={cn(
+                        "text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2",
+                        isPermit ? "text-sky-400" : "text-green-400"
+                      )}
+                    >
                       <CheckCircle2 size={13} />
-                      {lang === "en" ? "Contact Unlocked" : "Contact Déverrouillé"}
+                      {isPermit
+                        ? lang === "en"
+                          ? "Permit intel unlocked"
+                          : "Intel permis débloqué"
+                        : lang === "en"
+                          ? "Homeowner contact unlocked"
+                          : "Contact propriétaire débloqué"}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {contact.name && (
+                      {(contact.address || displayAddress) && (
+                        <div className="flex items-start gap-3 p-4 rounded-xl bg-background/40 border border-border/40 sm:col-span-2">
+                          <MapPin size={18} className="text-sky-400 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-[9px] uppercase tracking-widest font-black text-muted-foreground">
+                              {lang === "en" ? "Address" : "Adresse"}
+                            </p>
+                            <p className="font-bold text-sm text-foreground break-words">
+                              {contact.address || displayAddress}
+                            </p>
+                            {mapsHref && (
+                              <a
+                                href={mapsHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-sky-400 hover:underline"
+                              >
+                                <ExternalLink size={12} />
+                                {lang === "en" ? "Navigate in Google Maps" : "Naviguer dans Google Maps"}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {(contact.permit_number || initialPermit) && (
+                        <div className="flex items-center gap-3 p-4 rounded-xl bg-sky-500/10 border border-sky-500/20">
+                          <FileText size={18} className="text-sky-400" />
+                          <div>
+                            <p className="text-[9px] uppercase tracking-widest font-black text-sky-400/60">
+                              {lang === "en" ? "Permit #" : "Permis #"}
+                            </p>
+                            <p className="font-mono font-bold text-sm">
+                              {contact.permit_number || initialPermit}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {contact.name && !isPermit && (
                         <div className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
                           <User size={18} className="text-green-400" />
                           <div>
@@ -501,16 +739,9 @@ const LeadCard: React.FC<LeadCardProps> = ({
                           </div>
                         </div>
                       )}
-                      {contact.phone && (
-                        contact.phone === "[Requires Elite Upgrade]" ? (
-                          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                            <Zap size={18} className="text-amber-400" />
-                            <div>
-                              <p className="text-[9px] uppercase tracking-widest font-black text-amber-400/60">Phone</p>
-                              <p className="font-mono font-bold text-sm blur-[2px] select-none text-muted-foreground/40">555-000-0000</p>
-                            </div>
-                          </div>
-                        ) : (
+                      {contact.phone &&
+                        contact.phone !== "[Requires Elite Upgrade]" &&
+                        !String(contact.phone).includes("open data") && (
                           <a
                             href={`tel:${contact.phone}`}
                             onClick={(e) => e.stopPropagation()}
@@ -522,18 +753,11 @@ const LeadCard: React.FC<LeadCardProps> = ({
                               <p className="font-mono font-bold text-sm">{contact.phone}</p>
                             </div>
                           </a>
-                        )
-                      )}
-                      {contact.email && (
-                        contact.email === "[Requires Elite Upgrade]" ? (
-                          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                            <Zap size={18} className="text-amber-400" />
-                            <div>
-                              <p className="text-[9px] uppercase tracking-widest font-black text-amber-400/60">Email</p>
-                              <p className="font-mono font-bold text-sm blur-[3px] select-none text-muted-foreground/40">owner@email.com</p>
-                            </div>
-                          </div>
-                        ) : (
+                        )}
+                      {contact.email &&
+                        !contact.email.includes("@scraped.") &&
+                        !contact.email.includes("open data") &&
+                        contact.email !== "[Requires Elite Upgrade]" && (
                           <a
                             href={`mailto:${contact.email}`}
                             onClick={(e) => e.stopPropagation()}
@@ -545,8 +769,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
                               <p className="font-mono font-bold text-sm truncate">{contact.email}</p>
                             </div>
                           </a>
-                        )
-                      )}
+                        )}
                       {contact.url && (
                         <a
                           href={contact.url}
@@ -558,11 +781,20 @@ const LeadCard: React.FC<LeadCardProps> = ({
                           <ExternalLink size={18} className="text-blue-400" />
                           <div>
                             <p className="text-[9px] uppercase tracking-widest font-black text-blue-400/60">Source</p>
-                            <p className="font-mono font-bold text-sm truncate">{lang === "en" ? "Municipal Record" : "Dossier municipal"}</p>
+                            <p className="font-mono font-bold text-sm truncate">
+                              {lang === "en" ? "Municipal record" : "Dossier municipal"}
+                            </p>
                           </div>
                         </a>
                       )}
                     </div>
+                    {isPermit && !contact.phone && (
+                      <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/30 pt-3">
+                        {lang === "en"
+                          ? "City open data does not include the property owner's phone. Use address + Maps for door-knock / flyer outreach, or wait for a Homeowner contact lead for callable PII."
+                          : "Les données ouvertes n'incluent pas le téléphone du propriétaire. Utilisez l'adresse + Cartes pour le porte-à-porte, ou un lead Contact propriétaire pour le numéro."}
+                      </p>
+                    )}
                   </motion.div>
                 )}
 
@@ -617,7 +849,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   </div>
                 )}
 
-                {/* Privacy notice */}
+                {/* Privacy notice — only while locked */}
                 {!unlocked && (
                   <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-4">
                     <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
@@ -675,7 +907,11 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   ) : (
                     <>
                       <Zap size={20} fill="currentColor" />
-                      {t("marketplace.intel.cta")}
+                      {isPermit
+                        ? lang === "en"
+                          ? "Unlock address & permit"
+                          : "Débloquer adresse et permis"
+                        : t("marketplace.intel.cta")}
                       <ChevronRight size={22} />
                     </>
                   )}

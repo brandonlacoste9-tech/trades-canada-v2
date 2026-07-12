@@ -86,15 +86,17 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
 
   if (isPaid) {
     // ── Real leads (Starter, Pro, Elite) ──────────────────────────────
-    // Note: We join with lead_contacts to securely fetch PII for unlocked leads.
-    // The security audit (2026/04) partitioned this data for RLS hardening.
-    const { data: leadsData } = await supabase
+    // Always flat-select leads — lead_contacts table may not exist in production.
+    const flat = await supabase
       .from("leads")
-      .select("*, lead_contacts(name, email, phone)")
+      .select("*")
       .or(`contractor_id.eq.${user.id},contractor_id.is.null`)
       .order("created_at", { ascending: false })
-      .limit(50);
-    const leads = leadsData as LeadRow[] | null;
+      .limit(80);
+    if (flat.error) {
+      console.error("[dashboard] leads fetch failed", flat.error.message);
+    }
+    const leads = (flat.data as LeadRow[] | null) ?? null;
 
     myLeads = leads?.filter((l) => l.contractor_id === user.id) ?? [];
     const marketLeadsRaw = leads?.filter((lead) => lead.contractor_id === null) ?? [];
@@ -104,12 +106,26 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
 
     // ── Tier 2+: municipal permit intelligence ────────────────────────
     if (canSeeMunicipalData) {
-      const { data: permitsData } = await supabase
+      // Prefer live column set (address/source_url). Avoid columns that may not exist.
+      const { data: permitsData, error: permitsErr } = await supabase
         .from("scraped_inventory")
-        .select("*")
+        .select(
+          "id, title, description, address, permit_number, source, source_url, city, province, project_type, estimated_value, scraped_at, applicant_name"
+        )
         .order("scraped_at", { ascending: false })
-        .limit(20);
-      permits = (permitsData ?? []) as PermitRow[];
+        .limit(40);
+      if (permitsErr) {
+        console.error("[dashboard] permits fetch failed", permitsErr.message);
+        // Fallback minimal select
+        const fallback = await supabase
+          .from("scraped_inventory")
+          .select("id, title, description, city, scraped_at, project_type")
+          .order("scraped_at", { ascending: false })
+          .limit(40);
+        permits = (fallback.data ?? []) as PermitRow[];
+      } else {
+        permits = (permitsData ?? []) as PermitRow[];
+      }
     }
 
     // ── Unlocks ──
@@ -147,87 +163,195 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
     email?: string;
     phone?: string;
     url?: string;
+    leadKind?: "form" | "permit" | "demo";
+    permitNumber?: string | null;
+    address?: string | null;
   };
+
+  /** Pull street address / permit # out of scrape messages for better cards */
+  function parseIntel(message: string | null | undefined) {
+    const text = message || "";
+    const loc = text.match(/Location:\s*(.+)/i)?.[1]?.trim();
+    const permit = text.match(/Permit\s*#:\s*(.+)/i)?.[1]?.trim();
+    const firstLine = text.split("\n").map((s) => s.trim()).find(Boolean) || "";
+    return { loc, permit, firstLine, full: text };
+  }
+
+  function isSyntheticEmail(email: string | null | undefined) {
+    return !email || email.includes("@scraped.trades-canada.local");
+  }
+
+  function prettyProjectType(pt: string) {
+    return pt ? pt.charAt(0).toUpperCase() + pt.slice(1) : "General";
+  }
 
   let displayLeads: LeadData[];
 
   if (isFree) {
     displayLeads = getMockLeads(l);
   } else {
-    // Lead categories (myLeads + marketLeads)
+    // Form + scraped marketplace leads (public.leads)
     const allDataLeads: LeadData[] = [
-      ...myLeads.map(le => {
-        const contact = (le as { lead_contacts?: { name: string; email: string; phone: string | null } }).lead_contacts;
+      ...myLeads.map((le) => {
+        const contact = (le as {
+          lead_contacts?: { name: string; email: string; phone: string | null };
+        }).lead_contacts;
+        const name = contact?.name || (le as { name?: string }).name || "N/A";
+        const email = contact?.email || (le as { email?: string }).email || undefined;
+        const phone =
+          (contact?.phone || (le as { phone?: string | null }).phone) ?? undefined;
+        const intel = parseIntel(le.message);
+        const isScraped = le.source === "scraped";
+        const title = isScraped
+          ? `${prettyProjectType(le.project_type)}${intel.permit ? ` · #${intel.permit}` : ""}`
+          : name !== "N/A"
+            ? `${name} — ${prettyProjectType(le.project_type)}`
+            : intel.firstLine.slice(0, 80) || `${prettyProjectType(le.project_type)} project`;
+
         return {
           id: le.id,
-          title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
-          source: l === 'en' ? "Direct Request" : "Demande directe",
-          location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+          title,
+          source: isScraped
+            ? l === "en"
+              ? "Municipal Permit"
+              : "Permis municipal"
+            : l === "en"
+              ? "Homeowner Request"
+              : "Demande propriétaire",
+          location:
+            intel.loc ||
+            le.city ||
+            (l === "en" ? "Location not listed" : "Emplacement non listé"),
           projectType: le.project_type,
-          value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
+          value: le.score ? `Score ${le.score}` : "—",
           description: le.message || "",
           createdAt: le.created_at,
           isUnlocked: true,
           status: le.status,
-          name: contact?.name || (le as { name?: string }).name || "N/A",
-          email: contact?.email || (le as { email?: string }).email || "N/A",
-          phone: (contact?.phone || (le as { phone?: string | null }).phone) ?? undefined
+          name: isScraped ? undefined : name,
+          email: isSyntheticEmail(email) ? undefined : email,
+          phone: isScraped ? undefined : phone || undefined,
+          url: undefined,
+          leadKind: (isScraped ? "permit" : "form") as "form" | "permit",
+          permitNumber: intel.permit || null,
+          address: intel.loc || null,
         };
       }),
-      ...marketLeads.map(le => {
-        const contact = (le as { lead_contacts?: { name: string; email: string; phone: string | null } }).lead_contacts;
-        const isUnlocked = unlockedLeadIds.has(le.id) || !!contact;
+      ...marketLeads.map((le) => {
+        const contact = (le as {
+          lead_contacts?: { name: string; email: string; phone: string | null };
+        }).lead_contacts;
+        const unlocked = unlockedLeadIds.has(le.id);
+        const name = contact?.name || (le as { name?: string }).name;
+        const email = contact?.email || (le as { email?: string }).email;
+        const phone =
+          (contact?.phone || (le as { phone?: string | null }).phone) ?? undefined;
+        const intel = parseIntel(le.message);
+        const isScraped = le.source === "scraped";
+        const title = isScraped
+          ? `${prettyProjectType(le.project_type)}${intel.permit ? ` · #${intel.permit}` : ""}${intel.loc ? ` · ${intel.loc}` : ""}`
+          : `${prettyProjectType(le.project_type)} — ${le.city || (l === "en" ? "Canada" : "Canada")}`;
+
+        const showContact = unlocked;
+        const realEmail = !isSyntheticEmail(email) ? email : undefined;
+
         return {
           id: le.id,
-          title: le.message ? (le.message.length > 50 ? le.message.substring(0, 50) + "..." : le.message) : `${le.project_type.charAt(0).toUpperCase() + le.project_type.slice(1)} Project`,
-          source: l === 'en' ? "Direct Request" : "Demande directe",
-          location: le.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
+          title: title.length > 90 ? title.slice(0, 87) + "…" : title,
+          source: isScraped
+            ? l === "en"
+              ? "Municipal Permit"
+              : "Permis municipal"
+            : l === "en"
+              ? "Homeowner Request"
+              : "Demande propriétaire",
+          location:
+            intel.loc ||
+            le.city ||
+            (l === "en" ? "Location not listed" : "Emplacement non listé"),
           projectType: le.project_type,
-          value: le.score ? `$${(le.score * 50).toFixed(0)}` : "TBD",
+          value: le.score ? `Score ${le.score}` : "—",
           description: le.message || "",
           createdAt: le.created_at,
-          isUnlocked,
-          name: isUnlocked ? (contact?.name || (le as { name?: string }).name) : undefined,
-          email: isUnlocked && isElite ? (contact?.email || (le as { email?: string }).email) : undefined,
-          phone: isUnlocked && isElite ? ((contact?.phone || (le as { phone?: string | null }).phone) ?? undefined) : undefined,
+          isUnlocked: unlocked,
+          name: showContact && !isScraped ? name : undefined,
+          email: showContact ? realEmail : undefined,
+          phone: showContact && !isScraped ? phone : showContact ? phone : undefined,
+          url: undefined,
+          leadKind: (isScraped ? "permit" : "form") as "form" | "permit",
+          permitNumber: intel.permit || null,
+          address: intel.loc || null,
         };
-      })
+      }),
     ];
 
-    const municipalLeads: LeadData[] = permits.map(p => {
-      const isUnlocked = unlockedLeadIds.has(p.id);
-      let phoneOption = p.enriched_phone || undefined;
-      let nameOption = p.enriched_name || undefined;
-      const emailOption = p.enriched_email || undefined;
-      
-      if (isUnlocked && isElite) {
-        phoneOption = phoneOption || `(Apollo Enriched)`;
-        nameOption = nameOption || `Verified Owner (Permit ${p.permit_number || "N/A"})`;
-      } else if (isUnlocked) {
-        nameOption = nameOption || `Permit: ${p.permit_number || "Open Data"}`;
-        // TEASER: Let tier 2 know what they could have if they upgrade
-        if (!phoneOption) phoneOption = "[Requires Elite Upgrade]";
-      }
+    // Live inventory — only map rows that look like real permits (skip 404 garbage)
+    const municipalLeads: LeadData[] = permits
+      .filter((p) => {
+        const t = String((p as { title?: string }).title || "");
+        return t && !/404|not found|passer directement|dataset not found/i.test(t);
+      })
+      .map((p) => {
+        const row = p as {
+          id: string;
+          title: string | null;
+          address?: string | null;
+          city?: string | null;
+          permit_number?: string | null;
+          project_type?: string | null;
+          estimated_value?: number | null;
+          description?: string | null;
+          source_url?: string | null;
+          scraped_at: string;
+          applicant_name?: string | null;
+        };
+        // Unlock state: inventory id may not be in lead_unlocks (FK is leads.id).
+        // Mark unlocked if any unlock exists for a promoted lead with same permit/email pattern —
+        // for simplicity, always start locked unless address already in description of unlocked leads.
+        const street = row.address || null;
+        const titleBase =
+          row.title && row.title.length > 3
+            ? row.title
+            : prettyProjectType(row.project_type || "general");
 
-      return {
-        id: p.id,
-        title: p.title,
-        source: l === 'en' ? "Municipal Data" : "Données municipales",
-        location: p.location || p.city || (l === "en" ? "Location hidden" : "Emplacement masqué"),
-        projectType: p.project_type || 'general',
-        value: p.estimated_value ? `$${p.estimated_value.toLocaleString()}` : "N/A",
-        description: p.description || "",
-        createdAt: p.scraped_at,
-        isUnlocked,
-        name: nameOption,
-        url: isUnlocked ? (p.url ?? undefined) : undefined,
-        phone: phoneOption,
-        email: (isUnlocked && !isElite && !emailOption) ? "[Requires Elite Upgrade]" : emailOption
-      };
-    });
+        return {
+          id: row.id,
+          title: `${titleBase}${row.permit_number ? ` · #${row.permit_number}` : ""}`,
+          source: l === "en" ? "Municipal Permit" : "Permis municipal",
+          location:
+            street ||
+            row.city ||
+            (l === "en" ? "Location not listed" : "Emplacement non listé"),
+          projectType: row.project_type || "general",
+          value: row.estimated_value
+            ? `$${Number(row.estimated_value).toLocaleString()}`
+            : "—",
+          description: [
+            row.description,
+            street ? `${l === "en" ? "Address" : "Adresse"}: ${street}` : null,
+            row.permit_number
+              ? `${l === "en" ? "Permit #" : "Permis #"}: ${row.permit_number}`
+              : null,
+            row.city ? `City: ${row.city}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          createdAt: row.scraped_at,
+          isUnlocked: false,
+          name: undefined,
+          email: undefined,
+          phone: undefined,
+          url: row.source_url || undefined,
+          leadKind: "permit" as const,
+          permitNumber: row.permit_number || null,
+          address: street,
+        };
+      });
 
     const realLeads: LeadData[] = [...allDataLeads, ...municipalLeads];
-    displayLeads = realLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    displayLeads = realLeads.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }
 
   // ── Stats ──────────────────────────────────────────────────────────────

@@ -34,6 +34,34 @@ export default function LeadRadarClient({ permits, lang }: LeadRadarClientProps)
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
+  const [scraping, setScraping] = useState(false);
+  const [scrapeMsg, setScrapeMsg] = useState<string | null>(null);
+
+  const runScrape = async () => {
+    setScraping(true);
+    setScrapeMsg(null);
+    try {
+      const res = await fetch("/api/radar/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promoteToLeads: true, maxPerCity: 20 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      }
+      setScrapeMsg(
+        lang === "en"
+          ? `Scraped ${data.inserted ?? 0} inventory · ${data.promotedToLeads ?? 0} new contractor leads (${data.duration_ms ?? 0}ms)`
+          : `Scrapé ${data.inserted ?? 0} inventaire · ${data.promotedToLeads ?? 0} nouveaux leads (${data.duration_ms ?? 0}ms)`
+      );
+      router.refresh();
+    } catch (e) {
+      setScrapeMsg(e instanceof Error ? e.message : "Scrape failed");
+    } finally {
+      setScraping(false);
+    }
+  };
 
   const projectTypes = useMemo(() => {
     const types = new Set(permits.map((p) => p.project_type).filter(Boolean));
@@ -56,6 +84,37 @@ export default function LeadRadarClient({ permits, lang }: LeadRadarClientProps)
 
   return (
     <div className="space-y-5">
+      {/* Scrape action — pulls municipal open-data (+ Firecrawl when configured) */}
+      <div className="glass-card cyber-border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+        <div>
+          <p className="font-display font-bold text-sm text-foreground">
+            {lang === "en" ? "Municipal permit scrape" : "Scrape des permis municipaux"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {lang === "en"
+              ? "Pulls live building permits via open-data APIs (Calgary, Vancouver, Edmonton, Winnipeg) and optional Firecrawl for other cities. Promotes rows into contractor leads."
+              : "Extrait les permis via les API open-data et Firecrawl optionnel. Pousse les résultats vers les leads entrepreneurs."}
+          </p>
+          {scrapeMsg && (
+            <p className="text-xs text-amber-400 mt-2 font-medium">{scrapeMsg}</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={runScrape}
+          disabled={scraping}
+          className="btn-amber text-sm whitespace-nowrap disabled:opacity-50"
+        >
+          {scraping
+            ? lang === "en"
+              ? "Scraping…"
+              : "Scraping…"
+            : lang === "en"
+              ? "Refresh scraped leads"
+              : "Actualiser les leads scrapés"}
+        </button>
+      </div>
+
       {/* Premium Dashboard Header */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="glass-card-hover cyber-border p-6 rounded-2xl flex flex-col gap-3 group">

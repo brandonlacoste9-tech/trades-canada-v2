@@ -4,6 +4,12 @@
   "buildCommand": "pnpm turbo run build --filter=@trades-canada/web",
   "outputDirectory": "apps/web/.next",
   "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/radar/scrape",
+      "schedule": "0 */6 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

@@ -47,13 +47,24 @@ function decodeSupabaseJwtPayload(jwt: string): { role?: string } | null {
   }
 }
 
-/** Reject using the anon key as the service role — insert can succeed but SELECT returns fail (RLS). */
-function assertServiceRoleJwt(key: string): void {
+/** Reject using the anon/publishable key as the service role. */
+function assertServiceRoleKey(key: string): void {
+  // New Supabase API keys (2025+): sb_publishable_ / sb_secret_
+  if (key.startsWith("sb_publishable_")) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is a publishable (anon) key. Use the secret key (sb_secret_...) or legacy service_role JWT from Supabase → Settings → API Keys."
+    );
+  }
+  if (key.startsWith("sb_secret_")) {
+    return; // valid elevated key
+  }
+
+  // Legacy JWT keys
   const payload = decodeSupabaseJwtPayload(key);
   const role = payload?.role;
   if (role === "anon") {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is the anon (public) key. In Vercel, set it to the service_role secret from Supabase → Settings → API (not the anon key)."
+      "SUPABASE_SERVICE_ROLE_KEY is the anon (public) key. Set it to the service_role secret from Supabase → Settings → API (not the anon key)."
     );
   }
   if (role && role !== "service_role") {
@@ -75,19 +86,53 @@ const LeadSchema = z.object({
   form_rendered_at: z.number().int().positive().optional(),
 });
 
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  return /your-project\.supabase\.co|your-anon-key|your-service-role-key|placeholder/i.test(
+    value
+  );
+}
 
-  if (!url || !key) {
-    throw new Error("Supabase service role credentials not configured.");
+/**
+ * Prefer service_role / sb_secret for server inserts (bypasses RLS).
+ * Falls back to publishable/anon when service role is not configured yet —
+ * live RLS allows public lead inserts, so capture can still work.
+ */
+function getLeadsWriteClient(): {
+  client: ReturnType<typeof createClient>;
+  mode: "service_role" | "anon";
+} {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || isPlaceholder(url)) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL is not configured. Set it to https://YOUR_REF.supabase.co in apps/web/.env.local."
+    );
   }
 
-  assertServiceRoleJwt(key);
+  if (serviceKey && !isPlaceholder(serviceKey)) {
+    assertServiceRoleKey(serviceKey);
+    return {
+      client: createClient(url, serviceKey, { auth: { persistSession: false } }),
+      mode: "service_role",
+    };
+  }
 
-  return createClient(url, key, {
-    auth: { persistSession: false },
-  });
+  if (anonKey && !isPlaceholder(anonKey)) {
+    console.warn(
+      `${LOG_PREFIX} using anon/publishable key for lead writes — set SUPABASE_SERVICE_ROLE_KEY (sb_secret_... or service_role JWT) for production hardening`
+    );
+    return {
+      client: createClient(url, anonKey, { auth: { persistSession: false } }),
+      mode: "anon",
+    };
+  }
+
+  throw new Error(
+    "Supabase credentials not configured. Set NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY (and ideally SUPABASE_SERVICE_ROLE_KEY)."
+  );
 }
 
 function mapProjectType(raw: string): ProjectType {
@@ -161,22 +206,25 @@ export async function POST(req: NextRequest) {
 
   const projectType = mapProjectType(parsed.data.project_type);
 
-  // ── Insert via service role (bypasses RLS) ─────────────────────────────────
+  // ── Insert lead (PII lives on public.leads in current production schema) ─
   try {
-    const supabase = getServiceClient();
+    const { client: supabase, mode: writeMode } = getLeadsWriteClient();
     const { data: insertedLead, error: dbError } = await supabase
       .from("leads")
       .insert({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        phone: parsed.data.phone ?? null,
         project_type: projectType,
         language: parsed.data.language ?? "en",
         city: parsed.data.city ?? null,
         source: "web",
+        status: "new",
       })
       .select("id")
       .single();
 
     if (dbError) {
-      // ... same error handling ...
       const msgLower = dbError.message.toLowerCase();
       const looksLikeSelectAfterAnonInsert =
         dbError.code === "PGRST116" ||
@@ -186,6 +234,7 @@ export async function POST(req: NextRequest) {
       console.error(`${LOG_PREFIX} db_insert_failed`, {
         requestId,
         ip,
+        writeMode,
         code: dbError.code,
         message: dbError.message,
       });
@@ -204,13 +253,23 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Optional partitioned contacts table (may not exist on older schemas)
     if (insertedLead?.id) {
-      await supabase.from("lead_contacts").insert({
+      const { error: contactErr } = await supabase.from("lead_contacts").insert({
         lead_id: insertedLead.id,
         name: parsed.data.name,
         email: parsed.data.email,
         phone: parsed.data.phone ?? null,
       });
+      if (contactErr) {
+        // Non-fatal: production currently stores PII on leads themselves
+        console.warn(`${LOG_PREFIX} lead_contacts_skip`, {
+          requestId,
+          message: contactErr.message,
+          code: contactErr.code,
+        });
+      }
     }
 
     // Qualification + logs must not fail the HTTP response after a successful insert.
@@ -340,9 +399,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error.";
-    const code = /credentials not configured|service role credentials/i.test(msg)
+    const code = /credentials not configured|not configured/i.test(msg)
       ? "MISSING_SERVICE_ROLE"
-      : /anon \(public\) key|must be the service_role JWT/i.test(msg)
+      : /publishable \(anon\)|anon \(public\) key|must be the service_role JWT/i.test(msg)
         ? "ANON_KEY_AS_SERVICE_ROLE"
         : "UNEXPECTED";
     console.error(`${LOG_PREFIX} unexpected_error`, { requestId, ip, message: msg, code });

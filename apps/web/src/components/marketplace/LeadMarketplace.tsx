@@ -36,6 +36,9 @@ interface LeadData {
   email?: string;
   phone?: string;
   url?: string;
+  leadKind?: "form" | "permit" | "demo";
+  permitNumber?: string | null;
+  address?: string | null;
 }
 
 export type UserTier = "free" | "starter" | "pro" | "elite";
@@ -50,6 +53,7 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
   const t = useTranslations(lang);
   const isFree = userTier === "free";
   const [filter, setFilter] = useState("all");
+  const [kindFilter, setKindFilter] = useState<"all" | "form" | "permit">("all");
   const [search, setSearch] = useState("");
   const [stats, setStats] = useState({
     newToday: 0,
@@ -75,10 +79,32 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
 
   const leadsToDisplay = initialLeads;
 
-  const filteredLeads = leadsToDisplay.filter(l => 
-    (filter === "all" || l.projectType?.toLowerCase() === filter.toLowerCase()) &&
-    (l.title.toLowerCase().includes(search.toLowerCase()) || (l.location || '').toLowerCase().includes(search.toLowerCase()))
-  );
+  const resolveKind = (l: LeadData): "form" | "permit" | "demo" => {
+    if (l.isMock || l.leadKind === "demo") return "demo";
+    if (l.leadKind === "form" || l.leadKind === "permit") return l.leadKind;
+    if (/permit|municipal|permis/i.test(l.source || "")) return "permit";
+    return "form";
+  };
+
+  const formCount = leadsToDisplay.filter((l) => resolveKind(l) === "form").length;
+  const permitCount = leadsToDisplay.filter((l) => resolveKind(l) === "permit").length;
+
+  const filteredLeads = leadsToDisplay.filter((l) => {
+    const kind = resolveKind(l);
+    const kindOk =
+      kindFilter === "all" ||
+      kind === kindFilter ||
+      (kindFilter === "form" && kind === "demo");
+    const typeOk =
+      filter === "all" || l.projectType?.toLowerCase() === filter.toLowerCase();
+    const q = search.toLowerCase();
+    const searchOk =
+      !q ||
+      l.title.toLowerCase().includes(q) ||
+      (l.location || "").toLowerCase().includes(q) ||
+      (l.address || "").toLowerCase().includes(q);
+    return kindOk && typeOk && searchOk;
+  });
 
   return (
     <div className="space-y-10">
@@ -102,6 +128,38 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
             <Link href={`/${lang}#pricing`} className="btn-amber text-xs shrink-0">
               {lang === "en" ? "Upgrade" : "Améliorer"}
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Product honesty legend */}
+      {!isFree && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-400 mb-1">
+              {lang === "en" ? "Homeowner contact" : "Contact propriétaire"}
+              <span className="ml-2 text-muted-foreground font-bold normal-case tracking-normal">
+                ({formCount})
+              </span>
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {lang === "en"
+                ? "Form submissions — name, phone, email. These are the callable leads."
+                : "Demandes web — nom, téléphone, courriel. Ce sont les leads appelables."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4">
+            <p className="text-xs font-black uppercase tracking-widest text-sky-400 mb-1">
+              {lang === "en" ? "Permit signal" : "Signal permis"}
+              <span className="ml-2 text-muted-foreground font-bold normal-case tracking-normal">
+                ({permitCount})
+              </span>
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {lang === "en"
+                ? "Municipal open data — address, permit #, Maps. No owner phone in city files."
+                : "Données ouvertes — adresse, n° permis, Cartes. Pas de téléphone du propriétaire."}
+            </p>
           </div>
         </div>
       )}
@@ -181,6 +239,36 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
           </div>
         </div>
       </div>
+
+      {/* Kind filter: form vs permit */}
+      {!isFree && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {(
+            [
+              { id: "all" as const, en: "All leads", fr: "Tous les leads" },
+              { id: "form" as const, en: "Homeowner contacts", fr: "Contacts propriétaires" },
+              { id: "permit" as const, en: "Permit signals", fr: "Signaux permis" },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setKindFilter(opt.id)}
+              className={cn(
+                "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border",
+                kindFilter === opt.id
+                  ? opt.id === "form"
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                    : opt.id === "permit"
+                      ? "bg-sky-500/20 text-sky-300 border-sky-500/40"
+                      : "bg-primary text-white border-primary"
+                  : "bg-muted/20 border-border text-muted-foreground hover:bg-muted/40"
+              )}
+            >
+              {lang === "en" ? opt.en : opt.fr}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filters Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
@@ -271,9 +359,34 @@ const LeadMarketplace: React.FC<LeadMarketplaceProps> = ({ initialLeads = [], la
 
       {/* Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {filteredLeads.map(lead => (
+        {filteredLeads.map((lead) => (
           <LeadCard key={lead.id} {...lead} lang={lang} />
         ))}
+
+        {filteredLeads.length === 0 && (
+          <div className="lg:col-span-2 flex flex-col items-center justify-center p-10 rounded-2xl border border-dashed border-border bg-muted/5 text-center">
+            <p className="font-bold text-foreground mb-2">
+              {lang === "en" ? "No leads match this filter" : "Aucun lead pour ce filtre"}
+            </p>
+            <p className="text-sm text-muted-foreground max-w-md">
+              {kindFilter === "form"
+                ? lang === "en"
+                  ? "Homeowner contacts come from the public quote form. Drive traffic to city pages to fill this list."
+                  : "Les contacts propriétaires viennent du formulaire public. Dirigez du trafic vers les pages ville."
+                : lang === "en"
+                  ? "Try another category, or refresh permit data from Lead Radar."
+                  : "Essayez une autre catégorie, ou actualisez le Radar de permis."}
+            </p>
+            {kindFilter === "form" && (
+              <Link
+                href={`/${lang}/dashboard/radar`}
+                className="mt-4 text-xs font-black uppercase tracking-widest text-primary hover:underline"
+              >
+                {lang === "en" ? "Open Lead Radar →" : "Ouvrir le Radar →"}
+              </Link>
+            )}
+          </div>
+        )}
         
         {/* Empty State / Add Suggestion */}
         <div className="flex flex-col items-center justify-center p-8 rounded-2xl border border-dashed border-border bg-muted/5 group cursor-pointer hover:bg-muted/10 transition-colors">

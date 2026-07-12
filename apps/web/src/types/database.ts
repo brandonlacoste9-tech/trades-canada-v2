@@ -248,40 +248,52 @@ export interface Database {
           id: string;
           title: string;
           description: string | null;
-          location: string | null;
+          /** Live production column (preferred) */
+          address: string | null;
+          /** Legacy name — may be absent in production */
+          location?: string | null;
           permit_number: string | null;
+          permit_type?: string | null;
+          trade_category?: string | null;
           source: string | null;
-          url: string | null;
+          source_url: string | null;
+          /** Legacy name — may be absent in production */
+          url?: string | null;
           scraped_at: string;
-          city: string | null;
+          city: string;
+          province: string;
           project_type: string | null;
           estimated_value: number | null;
-          // Added in migration 20260326000001
+          applicant_name?: string | null;
+          permit_date?: string | null;
+          raw_data?: unknown;
+          is_active?: boolean;
           latitude: number | null;
           longitude: number | null;
-          enriched_name: string | null;
-          enriched_email: string | null;
-          enriched_phone: string | null;
-          enriched_at: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Insert: {
           id?: string;
           title: string;
           description?: string | null;
+          address?: string | null;
           location?: string | null;
           permit_number?: string | null;
+          permit_type?: string | null;
+          trade_category?: string | null;
           source?: string | null;
+          source_url?: string | null;
           url?: string | null;
           scraped_at?: string;
-          city?: string | null;
+          city: string;
+          province: string;
           project_type?: string | null;
           estimated_value?: number | null;
+          applicant_name?: string | null;
           latitude?: number | null;
           longitude?: number | null;
-          enriched_name?: string | null;
-          enriched_email?: string | null;
-          enriched_phone?: string | null;
-          enriched_at?: string | null;
+          is_active?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["scraped_inventory"]["Insert"]>;
         Relationships: [];
