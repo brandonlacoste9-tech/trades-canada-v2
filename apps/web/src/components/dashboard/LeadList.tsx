@@ -90,15 +90,15 @@ function LeadCard({
               <span className="px-2 py-0.5 rounded-full text-[10px] font-display font-semibold border border-cyan-400/30 bg-cyan-500/10 text-cyan-300">
                 {aiAction === "email_now"
                   ? lang === "en"
-                    ? "AI: Email Now"
-                    : "IA: Courriel immédiat"
+                    ? "Suggested: email now"
+                    : "Suggéré: courriel maintenant"
                   : aiAction === "send_booking_link"
                     ? lang === "en"
-                      ? "AI: Send Booking Link"
-                      : "IA: Lien de réservation"
+                      ? "Suggested: send booking link"
+                      : "Suggéré: lien de réservation"
                     : lang === "en"
-                      ? "AI: Nurture"
-                      : "IA: Nurture"}
+                      ? "Suggested: follow up later"
+                      : "Suggéré: suivi plus tard"}
               </span>
             )}
           </div>
