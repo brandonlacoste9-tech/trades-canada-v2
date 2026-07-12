@@ -150,9 +150,10 @@ export default function DashboardTopbar({ lang, profile }: DashboardTopbarProps)
       );
       setIsModalOpen(false);
       window.location.reload();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Promo bypass error:", err);
-      toast.error(err.message || (lang === "en" ? "Invalid promo code." : "Code promo invalide."));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      toast.error(errMsg || (lang === "en" ? "Invalid promo code." : "Code promo invalide."));
     } finally {
       setIsPromoApplying(false);
     }
