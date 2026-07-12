@@ -35,6 +35,7 @@ interface LeadData {
   name?: string;
   email?: string;
   phone?: string;
+  url?: string;
 }
 
 export type UserTier = "free" | "starter" | "pro" | "elite";

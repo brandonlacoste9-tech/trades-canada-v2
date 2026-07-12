@@ -76,6 +76,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
   name: initialName,
   email: initialEmail,
   phone: initialPhone,
+  url: initialUrl,
   lang = "en",
   isMock = false,
 }) => {
@@ -86,6 +87,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
     name: initialName,
     email: initialEmail,
     phone: initialPhone,
+    url: initialUrl,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
