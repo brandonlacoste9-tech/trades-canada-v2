@@ -18,8 +18,18 @@ interface SettingsClientProps {
 
 const SERVICES = ["HVAC", "Roofing", "Plumbing", "Electrical", "Renovations", "Landscaping", "General Contracting", "Other"];
 
+function normalizeDbTier(tier: string | null | undefined): string | null {
+  if (!tier) return null;
+  const t = tier.toLowerCase();
+  if (t === "elite" || t === "dominator") return "dominator";
+  if (t === "pro" || t === "engine") return "engine";
+  if (t === "starter") return "starter";
+  return t;
+}
+
 export default function SettingsClient({ profile, lang, userId }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<"profile" | "telegram" | "billing">("profile");
+  const normalizedTier = normalizeDbTier(profile?.subscription_tier);
   const [form, setForm] = useState({
     displayName: profile?.display_name ?? "",
     companyName: profile?.company_name ?? "",
@@ -352,11 +362,11 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
             <p className="text-xs font-display font-semibold text-muted-foreground mb-2">
               {t("settings.plan", lang)}
             </p>
-            {profile?.subscription_tier ? (
+            {normalizedTier ? (
               <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
                 <CreditCard className="w-5 h-5 text-amber-400 shrink-0" />
                 <div>
-                  <p className="font-display font-bold text-sm text-amber-400">{profile.subscription_tier}</p>
+                  <p className="font-display font-bold text-sm text-amber-400">{normalizedTier}</p>
                   <p className="text-muted-foreground text-xs">
                     {lang === "en" ? "Active subscription" : "Abonnement actif"}
                   </p>
@@ -368,8 +378,8 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
           </div>
 
           <div className="flex flex-col gap-4">
-            {(!profile?.subscription_tier || 
-              (profile.subscription_tier !== "engine" && profile.subscription_tier !== "dominator")) && (
+            {(!normalizedTier || 
+              (normalizedTier !== "engine" && normalizedTier !== "dominator")) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="glass-card-hover cyber-border p-4 space-y-3">
                   <h4 className="font-display font-bold text-sm">Lead Engine</h4>

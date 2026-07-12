@@ -35,12 +35,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid promo code." }, { status: 400 });
     }
 
-    // Bypass check passes — upgrade profile to dominator using service role
+    // Bypass check passes — upgrade profile to elite using service role
     const admin = getAdminSupabase();
     const { error: updateError } = await admin
       .from("profiles")
       .update({
-        subscription_tier: "dominator",
+        subscription_tier: "elite",
         stripe_customer_id: "cus_bypass_dominator",
         updated_at: new Date().toISOString(),
       })
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       throw new Error(updateError.message);
     }
 
-    return NextResponse.json({ success: true, tier: "dominator" });
+    return NextResponse.json({ success: true, tier: "elite" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error.";
     return NextResponse.json({ error: message }, { status: 500 });

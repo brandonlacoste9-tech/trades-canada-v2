@@ -92,6 +92,15 @@ const PLANS_DETAILS = [
   },
 ];
 
+function normalizeDbTier(tier: string | null | undefined): string | null {
+  if (!tier) return null;
+  const t = tier.toLowerCase();
+  if (t === "elite" || t === "dominator") return "dominator";
+  if (t === "pro" || t === "engine") return "engine";
+  if (t === "starter") return "starter";
+  return t;
+}
+
 export default function DashboardTopbar({ lang, profile }: DashboardTopbarProps) {
   const otherLang = lang === "en" ? "fr" : "en";
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,6 +108,8 @@ export default function DashboardTopbar({ lang, profile }: DashboardTopbarProps)
   const [showPromoInput, setShowPromoInput] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [isPromoApplying, setIsPromoApplying] = useState(false);
+
+  const normalizedTier = normalizeDbTier(profile?.subscription_tier);
 
   const priceIds = getCanonicalPriceIds();
 
@@ -167,17 +178,17 @@ export default function DashboardTopbar({ lang, profile }: DashboardTopbarProps)
             <h1 className="font-display font-semibold text-sm text-foreground">
               {lang === "en" ? "Contractor Dashboard" : "Tableau de bord entrepreneur"}
             </h1>
-            {profile?.subscription_tier ? (
+            {normalizedTier ? (
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-display font-bold border shrink-0 uppercase tracking-wider ${
-                profile.subscription_tier === "dominator"
+                normalizedTier === "dominator"
                   ? "bg-amber-500/20 border-amber-500/30 text-amber-400"
-                  : profile.subscription_tier === "engine"
+                  : normalizedTier === "engine"
                   ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                  : profile.subscription_tier === "starter"
+                  : normalizedTier === "starter"
                   ? "bg-white/10 border-white/20 text-foreground"
                   : "bg-white/[0.04] border-white/[0.08] text-muted-foreground"
               }`}>
-                {profile.subscription_tier === "free" ? (lang === "en" ? "Free" : "Gratuit") : profile.subscription_tier}
+                {normalizedTier === "free" ? (lang === "en" ? "Free" : "Gratuit") : normalizedTier}
               </span>
             ) : (
               <span className="text-[10px] px-2 py-0.5 rounded-full font-display font-bold border bg-white/[0.04] border-white/[0.08] text-muted-foreground shrink-0 uppercase tracking-wider">
@@ -189,8 +200,8 @@ export default function DashboardTopbar({ lang, profile }: DashboardTopbarProps)
 
         <div className="flex items-center gap-3">
           {/* Upgrade Button */}
-          {(!profile?.subscription_tier || 
-            (profile.subscription_tier !== "engine" && profile.subscription_tier !== "dominator")) && (
+          {(!normalizedTier || 
+            (normalizedTier !== "engine" && normalizedTier !== "dominator")) && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-display font-bold hover:bg-amber-500/20 hover:border-amber-500/50 transition-all cursor-pointer animate-glow-pulse"
@@ -277,7 +288,7 @@ export default function DashboardTopbar({ lang, profile }: DashboardTopbarProps)
               {/* Plans Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-y-auto pr-1 mb-6 flex-1 py-1">
                 {PLANS_DETAILS.map((plan) => {
-                  const isCurrent = profile?.subscription_tier === plan.id;
+                  const isCurrent = normalizedTier === plan.id;
                   const priceId = priceIds[plan.id as "starter" | "engine" | "dominator"];
                   const isUpgrading = upgradingId === priceId;
 
