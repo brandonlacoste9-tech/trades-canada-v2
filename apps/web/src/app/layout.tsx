@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import MetaPixel from "@/components/shared/MetaPixel";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Meta Pixel — fires on every page, tracks route changes automatically */}
         <MetaPixel />
         {children}
+        <Toaster position="bottom-right" richColors theme="dark" />
       </body>
     </html>
   );

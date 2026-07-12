@@ -3,9 +3,14 @@ import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  webpack: (config) => {
+    config.cache = false;
+    return config;
+  },
   outputFileTracingRoot: path.join(__dirname, "../../"),
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],
+    workerThreads: false,
   },
   images: {
     formats: ["image/avif", "image/webp"],

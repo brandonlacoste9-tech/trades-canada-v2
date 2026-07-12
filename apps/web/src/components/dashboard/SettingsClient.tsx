@@ -7,6 +7,7 @@ import { t, type Lang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types/marketplace";
 import { getCanonicalPriceIds } from "@/lib/stripe-prices";
+import { toast } from "sonner";
 
 
 interface SettingsClientProps {
@@ -91,6 +92,7 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
   };
 
   const [upgrading, setUpgrading] = useState(false);
+  const [managing, setManaging] = useState(false);
 
   const priceIds = getCanonicalPriceIds();
 
@@ -107,21 +109,42 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
       window.location.href = url;
     } catch (err) {
       console.error("Upgrade error:", err);
-      // You might want to use a toast here
+      toast.error(
+        lang === "en"
+          ? "Failed to initiate upgrade checkout. Please try again."
+          : "Échec du lancement du paiement d'abonnement. Veuillez réessayer."
+      );
     } finally {
       setUpgrading(false);
     }
   };
 
   const handleManageSubscription = async () => {
-    // This would ideally call a separate portal route, but for now we can redirect to a basic version or show info
-    // In a real app, create /api/stripe/create-portal
-    const response = await fetch("/api/stripe/create-portal", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    const { url } = await response.json();
-    if (url) window.location.href = url;
+    setManaging(true);
+    try {
+      const response = await fetch("/api/stripe/create-portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No URL returned from billing portal session.");
+      }
+    } catch (err) {
+      console.error("Manage subscription error:", err);
+      toast.error(
+        lang === "en"
+          ? "Failed to open billing portal. Please try again later."
+          : "Impossible d'ouvrir le portail de facturation. Veuillez réessayer plus tard."
+      );
+    } finally {
+      setManaging(false);
+    }
   };
 
   const tabs = [
@@ -345,7 +368,8 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
           </div>
 
           <div className="flex flex-col gap-4">
-            {!profile?.subscription_tier ? (
+            {(!profile?.subscription_tier || 
+              (profile.subscription_tier !== "engine" && profile.subscription_tier !== "dominator")) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="glass-card-hover cyber-border p-4 space-y-3">
                   <h4 className="font-display font-bold text-sm">Lead Engine</h4>
@@ -370,14 +394,19 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
                   </button>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {profile?.stripe_customer_id && (
               <div className="flex gap-3">
                 <button 
                   onClick={handleManageSubscription}
+                  disabled={managing}
                   className="btn-outline-amber text-sm"
                 >
-                  <RefreshCw className="w-3 h-3" />
-                  {t("settings.manage", lang)}
+                  <RefreshCw className={`w-3 h-3 ${managing ? "animate-spin" : ""}`} />
+                  {managing 
+                    ? (lang === "en" ? "Redirecting..." : "Redirection...") 
+                    : t("settings.manage", lang)}
                 </button>
               </div>
             )}

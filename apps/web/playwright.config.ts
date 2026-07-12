@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 /** Lets middleware run without a real .env.local (CI / fresh clone). Not for production. */
 const e2eSupabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://e2e-placeholder.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:4000";
 const e2eSupabaseAnon =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImUydGVzdHBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MTk5MDAwMDAwMH0.e2e-placeholder-signature";
