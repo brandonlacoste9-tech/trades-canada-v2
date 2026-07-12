@@ -448,13 +448,13 @@ export default function LeadRadarClient({ permits, lang }: LeadRadarClientProps)
 
                 <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 space-y-4">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-500">
-                    <ShieldCheck size={14} /> Intelligence Analysis
+                    <ShieldCheck size={14} />{" "}
+                    {lang === "en" ? "Why this matters" : "Pourquoi c'est utile"}
                   </div>
-                  <p className="text-xs text-muted-foreground font-bold leading-relaxed">
-                    {lang === "en" 
-                      ? "High-intent signal detected via municipal permit registry. This homeowner has recently pullled or applied for structural work. Competition is currently LOW in this zone."
-                      : "Signal d'intention élevé détecté via le registre municipal des permis. Ce propriétaire a récemment retiré ou demandé des travaux structurels. La concurrence est actuellement FAIBLE dans cette zone."
-                    }
+                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                    {lang === "en"
+                      ? "Someone filed or pulled a building permit here. That often means work is starting soon — good time for a door-knock, flyer, or intro call before they line up other crews."
+                      : "Quelqu'un a déposé ou retiré un permis ici. Les travaux commencent souvent bientôt — bon moment pour un porte-à-porte, un dépliant ou un appel avant qu'ils engagent d'autres équipes."}
                   </p>
                 </div>
               </div>

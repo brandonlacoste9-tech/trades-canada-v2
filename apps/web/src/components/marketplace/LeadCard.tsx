@@ -327,10 +327,15 @@ const LeadCard: React.FC<LeadCardProps> = ({
                 </span>
               )}
 
-              {/* Priority */}
               <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-[10px] font-black border border-amber-500/20">
                 <TrendingUp size={11} />
-                {lang === "en" ? "High Priority" : "Priorité haute"}
+                {isPermit
+                  ? lang === "en"
+                    ? "Job site"
+                    : "Chantier"
+                  : lang === "en"
+                    ? "Callable"
+                    : "Appelable"}
               </span>
             </div>
           </div>
@@ -532,10 +537,23 @@ const LeadCard: React.FC<LeadCardProps> = ({
                     </div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
-                        {t("marketplace.intel.title")}
+                        {isPermit
+                          ? lang === "en"
+                            ? "Permit details"
+                            : "Détails du permis"
+                          : lang === "en"
+                            ? "Lead details"
+                            : "Détails du lead"}
                       </h2>
-                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-green-500 tracking-widest italic animate-pulse">
-                        <Zap size={10} /> {lang === "en" ? "Verified Live" : "Vérifié en direct"}
+                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-green-500 tracking-widest">
+                        <Zap size={10} />{" "}
+                        {isPermit
+                          ? lang === "en"
+                            ? "Municipal open data"
+                            : "Données ouvertes"
+                          : lang === "en"
+                            ? "Homeowner request"
+                            : "Demande propriétaire"}
                       </span>
                     </div>
                   </div>
@@ -656,10 +674,12 @@ const LeadCard: React.FC<LeadCardProps> = ({
                     </p>
                     <div className="flex items-center gap-2">
                       <TrendingUp size={16} className="text-amber-400 shrink-0" />
-                      <span className="font-black text-base text-amber-400 uppercase italic">Fast Action</span>
+                      <span className="font-black text-base text-amber-400">
+                        {lang === "en" ? "Act fast" : "Agir vite"}
+                      </span>
                     </div>
                     <p className="text-[10px] text-muted-foreground font-medium">
-                      {lang === "en" ? "High Priority" : "Priorité haute"}
+                      {lang === "en" ? "First claim wins" : "Premier arrivé"}
                     </p>
                   </div>
                 </div>
@@ -798,66 +818,53 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   </motion.div>
                 )}
 
-                {/* AI Victory Plan — Elite Exclusive */}
+                {/* Practical next steps after unlock */}
                 {unlocked && (
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 space-y-4 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                       <Zap size={60} className="text-amber-500" />
-                    </div>
-                    
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400 flex items-center gap-2">
-                      <Zap size={13} fill="currentColor" />
-                      {lang === "en" ? "Deep Intelligence: Victory Plan" : "Intelligence Profonde: Plan de Victoire"}
+                  <div className="p-6 rounded-2xl bg-muted/10 border border-border/50 space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                      {lang === "en" ? "Suggested next steps" : "Prochaines étapes"}
                     </p>
-
-                    <div className="space-y-4 relative z-10">
-                      <div>
-                         <p className="text-xs font-bold text-foreground mb-1 italic">
-                           {lang === "en" ? "Economic Opportunity" : "Opportunité Économique"}
-                         </p>
-                         <p className="text-sm text-muted-foreground leading-relaxed">
-                            {lang === "en" 
-                              ? "Targeting a ~15-20% margin enhancement by bundling localized supply chain data with this property's specific permit profile."
-                              : "Ciblage d'une amélioration de marge de ~15-20% en regroupant les données de la chaîne d'approvisionnement locale avec le profil de permis spécifique de cette propriété."}
-                         </p>
-                      </div>
-
-                      <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.05]">
-                         <p className="text-[10px] uppercase font-black text-amber-400/60 mb-2">
-                           {lang === "en" ? "AI Strategic Advice" : "Conseil Stratégique IA"}
-                         </p>
-                         <p className="text-sm font-medium text-foreground leading-relaxed">
-                           {lang === "en"
-                             ? "Be the first to mention the municipal planning update (Permit pending). Emphasize reliability and immediate crew availability to secure the contract before competitors finish their research."
-                             : "Soyez le premier à mentionner la mise à jour de la planification municipale (permis en attente). Mettez l'accent sur la fiabilité et la disponibilité immédiate de l'équipe pour décrocher le contrat avant que les concurrents n'aient terminé leurs recherches."}
-                         </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-amber-500/10">
-                       <span className="text-[9px] font-black uppercase tracking-widest text-amber-500/50">
-                         Powered by Trades-Canada AI Engine v4.0
-                       </span>
-                       <div className="flex -space-x-1">
-                          {[1,2,3].map(i => (
-                            <div key={i} className="h-5 w-5 rounded-full border-2 border-card bg-amber-500/20 flex items-center justify-center">
-                               <ShieldCheck size={10} className="text-amber-500" />
-                            </div>
-                          ))}
-                       </div>
-                    </div>
+                    <ul className="space-y-2 text-sm text-foreground/85 leading-relaxed list-disc pl-5">
+                      {isPermit ? (
+                        lang === "en" ? (
+                          <>
+                            <li>Open Maps, drive by or drop a flyer at the address.</li>
+                            <li>Check the city permit record for scope and timing.</li>
+                            <li>Offer a free estimate before other crews show up.</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>Ouvrez Cartes, passez ou laissez un dépliant à l'adresse.</li>
+                            <li>Consultez le dossier de permis pour la portée et le délai.</li>
+                            <li>Proposez une estimation gratuite avant les autres équipes.</li>
+                          </>
+                        )
+                      ) : lang === "en" ? (
+                        <>
+                          <li>Call within the hour — speed wins exclusive jobs.</li>
+                          <li>Confirm project type, budget, and preferred start date.</li>
+                          <li>Book a site visit while you have the contact.</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>Appelez dans l'heure — la rapidité gagne les jobs exclusifs.</li>
+                          <li>Confirmez le type de projet, le budget et la date de début.</li>
+                          <li>Planifiez une visite pendant que vous avez le contact.</li>
+                        </>
+                      )}
+                    </ul>
                   </div>
                 )}
 
-                {/* Privacy notice — only while locked */}
+                {/* Locked notice */}
                 {!unlocked && (
                   <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-4">
                     <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
                       <Lock size={20} />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-amber-400/80 uppercase tracking-widest italic mb-0.5">
-                        {lang === "en" ? "Secure Intelligence" : "Intelligence Sécurisée"}
+                      <p className="text-xs font-black text-amber-400/80 uppercase tracking-widest mb-0.5">
+                        {lang === "en" ? "Details locked" : "Détails verrouillés"}
                       </p>
                       <p className="text-xs text-muted-foreground font-medium leading-snug">
                         {t("marketplace.intel.warning")}

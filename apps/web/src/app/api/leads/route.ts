@@ -341,7 +341,7 @@ export async function POST(req: NextRequest) {
                 <h2 style="color: #d97706;">Thanks ${parsed.data.name}!</h2>
                 <p>We've received your request for a <strong>${projectType}</strong> project.</p>
                 <div style="background: #fffbeb; border: 1px solid #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                  <p style="margin: 0; color: #92400e;"><strong>AI Summary:</strong></p>
+                  <p style="margin: 0; color: #92400e;"><strong>Project note:</strong></p>
                   <p style="margin: 5px 0 0 0;">${qualification.summary}</p>
                 </div>
                 <p>A qualified contractor will be in touch with you shortly.</p>

@@ -36,7 +36,7 @@ export function OrganizationSchema({ lang }: OrganizationSchemaProps) {
         },
         description:
           lang === "en"
-            ? "Canada's #1 contractor growth platform. AI-powered lead generation, bilingual lead network, and real-time Telegram alerts for Canadian trades businesses."
+            ? "Canada's contractor lead platform. Exclusive homeowner leads, bilingual network, and real-time Telegram alerts for Canadian trades."
             : "La plateforme de croissance #1 pour les entrepreneurs au Canada. Génération de prospects par IA, réseau de leads bilingue et alertes Telegram en temps réel.",
         foundingDate: "2024",
         areaServed: {
@@ -117,7 +117,7 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
   const faqEn = [
     {
       q: `How do contractors get leads in ${cityName}?`,
-      a: `Trades-Canada connects ${cityName} contractors with homeowners through real-time Telegram alerts, building permit intelligence, and a bilingual lead network. Contractors receive new job leads within 60 seconds of a homeowner submitting a request.`,
+      a: `Trades-Canada connects ${cityName} contractors with homeowners through exclusive leads, Telegram alerts, building permit addresses, and a bilingual lead network. Contractors receive new job leads within 60 seconds of a homeowner submitting a request.`,
     },
     {
       q: `What trades are covered in ${cityName}?`,
@@ -129,14 +129,14 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
     },
     {
       q: `What is the Lead Radar for ${cityName}?`,
-      a: `The Lead Radar is a real-time building permit intelligence feed for ${cityName}. It scrapes municipal permit databases daily and alerts Pro and Elite contractors to new construction and renovation permits before homeowners start calling — giving you first-mover advantage on high-value jobs.`,
+      a: `The Lead Radar lists new building permits in ${cityName}. It pulls municipal permit data daily so Pro and Elite contractors can reach job sites early — often before homeowners shop around for multiple quotes.`,
     },
   ];
 
   const faqFr = [
     {
       q: `Comment les entrepreneurs obtiennent-ils des prospects à ${cityName}?`,
-      a: `Trades-Canada connecte les entrepreneurs de ${cityName} avec des propriétaires via des alertes Telegram en temps réel, l'intelligence des permis de construction et un réseau de génération de prospects bilingue. Les entrepreneurs reçoivent de nouveaux prospects en moins de 60 secondes.`,
+      a: `Trades-Canada connecte les entrepreneurs de ${cityName} avec des propriétaires via des leads exclusifs, des alertes Telegram, des adresses de permis de construction et un réseau bilingue. Les entrepreneurs reçoivent de nouveaux prospects en moins de 60 secondes.`,
     },
     {
       q: `Quels métiers sont couverts à ${cityName}?`,
@@ -159,7 +159,7 @@ export function CitySchema({ cityName, citySlug, lang, province, population }: C
         name: `Trades-Canada ${cityName}`,
         description:
           lang === "en"
-            ? `Contractor lead generation and growth platform serving ${cityName}, ${province}. Real-time job alerts, building permit intelligence, and a bilingual lead network for ${cityName} trades businesses.`
+            ? `Contractor lead platform for ${cityName}, ${province}. Real-time job alerts, building permit addresses, and a bilingual lead network for ${cityName} trades.`
             : `Plateforme de génération de prospects pour entrepreneurs à ${cityName}, ${province}. Alertes d'emploi en temps réel et réseau de leads bilingue.`,
         url: `https://trades-canada.com/${lang}/city/${citySlug}`,
         areaServed: {
@@ -203,11 +203,11 @@ export function HomepageFAQSchema({ lang }: { lang: "en" | "fr" }) {
   const faqEn = [
     {
       q: "What is Trades-Canada?",
-      a: "Trades-Canada is Canada's #1 contractor growth platform. It provides real-time homeowner lead alerts via Telegram, building permit intelligence (Lead Radar), a bilingual EN/FR lead network, and automated marketing for Canadian trades businesses. Plans start at $149 CAD/month.",
+      a: "Trades-Canada is a contractor lead platform for Canadian trades. It provides exclusive homeowner lead alerts via Telegram, building permit radar, a bilingual EN/FR lead network, and follow-up tools. Plans start at $149 CAD/month.",
     },
     {
       q: "How does Trades-Canada compare to HomeStars?",
-      a: "Unlike HomeStars, which is a shared directory where the same lead is sold to multiple contractors, Trades-Canada uses an exclusive claimed-lead model. Contractors receive real-time Telegram alerts within 60 seconds of a homeowner submitting a request, and the first contractor to claim the lead gets exclusive access. Trades-Canada also includes proactive permit intelligence — HomeStars has no equivalent feature.",
+      a: "Unlike HomeStars, which is a shared directory where the same lead is sold to multiple contractors, Trades-Canada uses an exclusive claimed-lead model. Contractors receive Telegram alerts within 60 seconds of a homeowner submitting a request, and the first contractor to claim the lead gets exclusive access. Trades-Canada also includes municipal permit radar for job-site outreach — HomeStars has no equivalent feature.",
     },
     {
       q: "How quickly do contractors receive leads on Trades-Canada?",
@@ -219,14 +219,14 @@ export function HomepageFAQSchema({ lang }: { lang: "en" | "fr" }) {
     },
     {
       q: "What is the Lead Radar feature?",
-      a: "The Lead Radar is a proactive building permit intelligence feed. It scrapes municipal permit databases across Canada daily and alerts Pro and Elite plan contractors to new construction and renovation permits before homeowners start calling contractors — giving subscribers first-mover advantage on high-value jobs worth $50,000–$500,000.",
+      a: "The Lead Radar lists new municipal building permits across Canada daily. Pro and Elite contractors get job-site addresses and scope so they can reach owners early — often before those owners call several competing crews.",
     },
   ];
 
   const faqFr = [
     {
       q: "Qu'est-ce que Trades-Canada?",
-      a: "Trades-Canada est la plateforme de croissance #1 pour les entrepreneurs au Canada. Elle fournit des alertes de prospects en temps réel via Telegram, l'intelligence des permis de construction (Radar de prospects), un réseau de leads bilingue EN/FR et du marketing automatisé pour les entreprises de métiers canadiennes. Les plans commencent à 149 $ CAD/mois.",
+      a: "Trades-Canada est une plateforme de leads pour les métiers canadiens. Elle fournit des alertes de prospects exclusifs via Telegram, un radar de permis de construction, un réseau bilingue EN/FR et des outils de suivi. Les plans commencent à 149 $ CAD/mois.",
     },
     {
       q: "Comment Trades-Canada se compare-t-il à HomeStars?",

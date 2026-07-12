@@ -33,13 +33,13 @@ export default async function JoinPage({ params }: BookingPageProps) {
     ? [
         "Instant access to local market leads",
         "Bilingual lead targeting setup for your city",
-        "Real-time Lead Radar & data intelligence",
+        "Lead Radar with municipal permit addresses",
         "Pay only for the leads you need",
       ]
     : [
         "Accès instantané aux leads du marché local",
         "Configuration du ciblage des leads bilingues",
-        "Aperçu du Lead Radar et intelligence des données",
+        "Radar de leads avec adresses de permis",
         "Payez seulement pour les leads dont vous avez besoin",
       ];
 

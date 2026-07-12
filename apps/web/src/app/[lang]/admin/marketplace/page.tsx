@@ -41,7 +41,7 @@ export default async function AdminMarketplacePage({ params }: AdminPageProps) {
             </h1>
             <p className="text-muted-foreground text-sm font-medium max-w-xl leading-relaxed">
               Real-time monitoring of lead flow, contractor engagement, and monetization health. 
-              Optimize your marketplace growth with data-driven network intelligence.
+              Track marketplace volume, claims, and conversion.
             </p>
           </div>
 

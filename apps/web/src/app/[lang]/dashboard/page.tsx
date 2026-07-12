@@ -379,7 +379,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
           {t("dashboard.title", l)}
         </h2>
         <p className="text-muted-foreground text-sm">
-          {l === "en" ? "Your leads, automation, and market intelligence." : "Vos leads, automatisation et intelligence de marché."}
+          {l === "en" ? "Your leads, claims, and permit radar." : "Vos leads, réclamations et radar de permis."}
         </p>
       </div>
 
@@ -395,8 +395,8 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
               </p>
               <p className="text-muted-foreground text-sm">
                 {l === "en"
-                  ? "Upgrade to unlock municipal intelligence (tier 2) and full lead + Apollo enriched data (tier 3)."
-                  : "Passez au niveau supérieur pour débloquer l'intelligence municipale (niveau 2) et les données complètes + enrichissement Apollo (niveau 3)."}
+                  ? "Upgrade to unlock real homeowner contacts and municipal permit addresses."
+                  : "Passez au niveau supérieur pour débloquer les contacts propriétaires et les adresses de permis."}
               </p>
             </div>
             <a
@@ -438,7 +438,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {isFree
-                ? (l === "en" ? "Upgrade to see permit intel." : "Améliorez pour l'intelligence permis.")
+                ? (l === "en" ? "Upgrade to see permit addresses." : "Améliorez pour voir les adresses de permis.")
                 : (l === "en" ? "Latest permit opportunities from scraped inventory." : "Dernières opportunités permis depuis l'inventaire scrappé.")}
             </p>
           </div>

@@ -52,7 +52,7 @@ const PLANS_DETAILS = [
       "Unlimited Marketplace Claims",
       "Lead capture automation",
       "Planexa scheduling system",
-      "AI-powered lead scoring",
+      "Lead quality scoring",
       "Contractor dashboard",
     ],
     featuresFr: [
@@ -60,7 +60,7 @@ const PLANS_DETAILS = [
       "Réclamations illimitées",
       "Automatisation de capture de leads",
       "Système de planification Planexa",
-      "Scoring de leads par IA",
+      "Score de qualité des leads",
       "Tableau de bord entrepreneur",
     ],
     highlight: true,
@@ -74,7 +74,7 @@ const PLANS_DETAILS = [
     descFr: "Accès prioritaire et données enrichies.",
     featuresEn: [
       "Everything in Lead Engine",
-      "Market intelligence feed",
+      "Municipal permit radar",
       "Enriched Contact Data",
       "Multi-channel automation",
       "Priority Lead Access",
@@ -82,7 +82,7 @@ const PLANS_DETAILS = [
     ],
     featuresFr: [
       "Tout du Moteur de Leads",
-      "Flux d'intelligence de marché",
+      "Radar de permis municipaux",
       "Données contact enrichies (Email/Tél)",
       "Automatisation multicanal",
       "Accès prioritaire aux leads",

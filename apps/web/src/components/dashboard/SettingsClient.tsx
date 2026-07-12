@@ -394,7 +394,7 @@ export default function SettingsClient({ profile, lang, userId }: SettingsClient
                 </div>
                 <div className="glass-card-hover border border-white/[0.08] p-4 space-y-3">
                   <h4 className="font-display font-bold text-sm">Lead Dominator</h4>
-                  <p className="text-muted-foreground text-xs">Priority access and AI-powered lead scoring.</p>
+                  <p className="text-muted-foreground text-xs">Priority access, permit radar, and enriched contacts.</p>
                   <button 
                     onClick={() => handleUpgrade(priceIds.dominator)}
                     disabled={upgrading}

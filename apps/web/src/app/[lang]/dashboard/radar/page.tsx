@@ -39,8 +39,8 @@ export default async function RadarPage({ params }: RadarPageProps) {
           </h2>
           <p className="text-muted-foreground text-sm">
             {l === "en"
-              ? "Municipal permit intelligence is unlocked on tier 2+."
-              : "L'intelligence des permis municipaux se débloque au niveau 2+."}
+              ? "Municipal permit radar unlocks on paid plans (tier 2+)."
+              : "Le radar de permis municipaux se débloque aux plans payants (niveau 2+)."}
           </p>
         </div>
         <div className="glass-card cyber-border rounded-2xl p-6">
@@ -75,7 +75,7 @@ export default async function RadarPage({ params }: RadarPageProps) {
         </h2>
         <p className="text-muted-foreground text-sm">
           {l === "en"
-            ? "Real-time market intelligence from permit data across Canada."
+            ? "New building permits across Canada — job-site addresses for outreach."
             : "Intelligence de marché en temps réel à partir des données de permis à travers le Canada."}
         </p>
         <p className="text-xs text-amber-400 mt-1">
