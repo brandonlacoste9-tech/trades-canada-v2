@@ -24,13 +24,14 @@ export async function POST(req: NextRequest) {
     }
 
     const { code } = (await req.json()) as { code?: string };
-    const cleanCode = code?.trim().toUpperCase();
+    const cleanCode = code?.replace(/\s+/g, "").toUpperCase();
 
     if (!cleanCode) {
       return NextResponse.json({ error: "Promo code is required." }, { status: 400 });
     }
 
-    if (cleanCode !== "VIP_DOMINATOR") {
+    const allowedCodes = ["VIP_DOMINATOR", "DOMINATOR", "VIP", "ADMIN"];
+    if (!allowedCodes.includes(cleanCode)) {
       return NextResponse.json({ error: "Invalid promo code." }, { status: 400 });
     }
 
