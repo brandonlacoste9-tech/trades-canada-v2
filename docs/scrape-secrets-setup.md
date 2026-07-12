@@ -8,7 +8,7 @@ Three production pieces that unlock the full municipal lead pipeline.
 |------|--------|---------------------|
 | `FIRECRAWL_API_KEY` | Optional (open-data cities work without it) | Same |
 | `SUPABASE_SERVICE_ROLE_KEY` | Required for `scraped_inventory` writes | Required |
-| Cron every 6h | Optional local | **Vercel Cron** or **pg_cron** |
+| Cron once daily (12:00 UTC) | Optional local | **Vercel Cron** or **pg_cron** |
 
 Check anytime:
 
@@ -65,14 +65,14 @@ Restart dev after editing `.env.local`.
 
 ---
 
-## 3. Cron (every 6 hours)
+## 3. Cron (once daily, 12:00 UTC)
 
 ### Option A — Vercel Cron (recommended)
 
 Already in `vercel.json` / `apps/web/vercel.json`:
 
 ```json
-"crons": [{ "path": "/api/radar/scrape", "schedule": "0 */6 * * *" }]
+"crons": [{ "path": "/api/radar/scrape", "schedule": "0 12 * * *" }]
 ```
 
 - Vercel sends `x-vercel-cron: 1` on GET → route runs scrape automatically.
@@ -92,7 +92,7 @@ curl -X POST https://www.trades-canada.com/api/radar/scrape \
   -d '{"promoteToLeads":true,"maxPerCity":25}'
 ```
 
-Schedule: `0 */6 * * *`
+Schedule: `0 12 * * *` (once daily at 12:00 UTC)
 
 ### Option C — Supabase pg_cron
 

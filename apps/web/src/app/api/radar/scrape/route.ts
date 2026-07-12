@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    // Scheduled run (Vercel Cron hits GET every 6h)
+    // Scheduled run (Vercel Cron hits GET once daily at 12:00 UTC)
     if (isAuthorizedCron(req)) {
       const payload = await executeScrape({
         promoteToLeads: true,

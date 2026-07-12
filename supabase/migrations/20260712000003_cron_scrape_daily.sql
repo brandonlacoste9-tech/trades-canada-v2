@@ -1,17 +1,9 @@
--- Point pg_cron at the Next.js scrape API (preferred) in addition to / instead of
--- only the legacy Edge Function.
---
--- BEFORE running, set secrets in the database (do not commit real values):
---
---   ALTER DATABASE postgres SET app.settings.site_url = 'https://www.trades-canada.com';
---   ALTER DATABASE postgres SET app.settings.cron_secret = 'your-long-random-CRON_SECRET';
---
--- Then run this migration (or paste into SQL Editor).
+-- Switch radar scrape from every 6 hours → once daily at 12:00 UTC
+-- Safe to re-run: unschedules old job names first.
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Unschedule old job name if present (idempotent)
 SELECT cron.unschedule(jobid)
 FROM cron.job
 WHERE jobname IN (
@@ -20,7 +12,6 @@ WHERE jobname IN (
   'radar-scrape-next-daily'
 );
 
--- Next.js API once daily at 12:00 UTC
 SELECT cron.schedule(
   'radar-scrape-next-daily',
   '0 12 * * *',

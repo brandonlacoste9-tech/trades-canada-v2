@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/radar/scrape",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 12 * * *"
     }
   ],
   "headers": [
