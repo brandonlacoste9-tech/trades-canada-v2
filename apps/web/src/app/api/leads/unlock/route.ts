@@ -15,6 +15,14 @@ function getAdminClient() {
   return createAdminClient<Database>(url, key, { auth: { persistSession: false } });
 }
 
+function dbTierToPlanId(tier: string | null | undefined): string {
+  if (!tier) return "starter";
+  const t = tier.toLowerCase();
+  if (t === "elite" || t === "dominator") return "dominator";
+  if (t === "pro" || t === "engine") return "engine";
+  return "starter";
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
 
@@ -53,10 +61,11 @@ export async function POST(req: NextRequest) {
 
   // 4. Fetch subscription plan to get lead_limit
   const rawTier = profile.subscription_tier ?? "starter";
+  const planId = dbTierToPlanId(rawTier);
   const { data: plan } = await admin
     .from("subscription_plans")
     .select("lead_limit")
-    .eq("id", rawTier)
+    .eq("id", planId)
     .single();
 
   const leadLimit: number | null = plan?.lead_limit ?? null;
