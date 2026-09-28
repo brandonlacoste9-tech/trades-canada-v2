@@ -834,7 +834,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
                           </>
                         ) : (
                           <>
-                            <li>Ouvrez Cartes, passez ou laissez un dépliant à l'adresse.</li>
+                            <li>Ouvrez Cartes, passez ou laissez un dépliant à l&apos;adresse.</li>
                             <li>Consultez le dossier de permis pour la portée et le délai.</li>
                             <li>Proposez une estimation gratuite avant les autres équipes.</li>
                           </>
@@ -847,7 +847,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
                         </>
                       ) : (
                         <>
-                          <li>Appelez dans l'heure — la rapidité gagne les jobs exclusifs.</li>
+                          <li>Appelez dans l&apos;heure — la rapidité gagne les jobs exclusifs.</li>
                           <li>Confirmez le type de projet, le budget et la date de début.</li>
                           <li>Planifiez une visite pendant que vous avez le contact.</li>
                         </>
